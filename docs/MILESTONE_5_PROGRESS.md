@@ -36,6 +36,10 @@ The exact counts, symbols, mirror families, distances, and Euler characteristic 
 - Added tests for exact named positions, forward/backward equality, and invalid progress clamping.
 - Visual review covers 1280×720 desktop and 390×844 mobile layouts, the opening, the sticky construction scene, a named football position, and mid-transition states.
 
+### Geometry-first composition correction
+
+The first story review exposed collisions between the solid, chapter copy, mirror inset, identity card, and topology counts. The composition now reserves a protected central field for the geometry, places the object name beneath that field on wide screens, moves counts inside optional disclosure, and uses a dedicated portrait layout for phones and tablets. The mirror inset is removed in portrait layouts, where the direct-manipulation scrubber already communicates the moving cause. Verified breakpoints now include 1440×900 desktop, 1024×768 landscape tablet, 820×1100 portrait tablet, and 390×844 phone.
+
 ## Remaining Milestone 5 work
 
 - Extend Scene 6 through the tetrahedral, octahedral, and chiral/snubbing chapters without unexplained topology changes.

@@ -191,8 +191,10 @@ class ShapeStory {
     const width = Math.max(1, this.canvas.clientWidth);
     const height = Math.max(1, this.canvas.clientHeight);
     const aspect = width / height;
-    const frustumHeight = window.innerWidth <= 760 ? 5.05 : 4.35;
-    const verticalOffset = window.innerWidth <= 760 ? -0.72 : 0;
+    const portraitStory = window.innerWidth <= 920 && aspect < 1;
+    this.stage.position.x = portraitStory ? 0 : aspect > 1.25 ? 0.5 : 0.18;
+    const frustumHeight = window.innerWidth <= 680 ? 5.05 : portraitStory ? 5.45 : 4.35;
+    const verticalOffset = portraitStory ? -0.72 : 0;
     this.camera.left = (-frustumHeight * aspect) / 2;
     this.camera.right = (frustumHeight * aspect) / 2;
     this.camera.top = frustumHeight / 2 + verticalOffset;
