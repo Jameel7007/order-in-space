@@ -120,6 +120,8 @@ Lock edge width/antialiasing, face treatment, background, lighting, camera, typo
 
 ## Milestone 5 — Load-bearing scenes
 
+**Status: in progress (2026-08-12).** The first public Scene 6 slice now maps reversible scroll progress to a genuine moving Wythoff generator across five named icosahedral positions. The new root story explains the construction in plain language and leaves the technical lab at `/lab`. See `docs/MILESTONE_5_PROGRESS.md`.
+
 Implement Scene 6, then Scene 3, then Scene 1 using reversible `setProgress(t)` state. Test forward/backward determinism, topology boundary handling, packing provenance, and scene transitions. Complete when continuous transformation, derivation, and presentation all work in production rendering.
 
 ## Milestone 6 — Remaining scenes

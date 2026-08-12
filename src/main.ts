@@ -143,7 +143,7 @@ class GeometryLab {
   private readonly reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
   constructor() {
-    requireElement<HTMLAnchorElement>("lab-home").href = `${import.meta.env.BASE_URL}lab`;
+    requireElement<HTMLAnchorElement>("lab-home").href = import.meta.env.BASE_URL;
     this.renderer = new WebGLRenderer({
       canvas: this.canvas,
       antialias: true,
@@ -188,7 +188,7 @@ class GeometryLab {
   private populateSolidSelect(): void {
     const custom = document.createElement("option");
     custom.value = "custom";
-    custom.textContent = "Moving generator · custom";
+    custom.textContent = "Your moving point";
     this.solidSelect.append(custom);
 
     const platonicGroup = document.createElement("optgroup");
@@ -400,7 +400,7 @@ class GeometryLab {
   private updateStudyChrome(mode: LabMode): void {
     const number = mode === "wythoff" ? "01" : mode === "packing" ? "02" : "03";
     requireElement<HTMLElement>("study-number").textContent = `Study ${number} / 03`;
-    const guideLabel = mode === "fcc" ? "Outer cell radius" : mode === "packing" ? "Center sphere" : "Master sphere";
+    const guideLabel = mode === "fcc" ? "Cell boundary sphere" : mode === "packing" ? "Center sphere" : "Shared sphere guide";
     requireElement<HTMLElement>("guide-label").textContent = guideLabel;
     requireElement<HTMLElement>("radius-legend-label").textContent = `${guideLabel} · R`;
   }
@@ -436,8 +436,8 @@ class GeometryLab {
     this.replaceStage(polyhedron);
     const system = createCoxeterSystem(this.currentTriangle());
     const orbitOrder = this.customOrbitMode === "chiral" ? system.group.length / 2 : system.group.length;
-    requireElement<HTMLOutputElement>("group-order").value = `orbit order ${String(orbitOrder)}`;
-    requireElement<HTMLElement>("mode-caption").textContent = "One generator, reflected into order.";
+    requireElement<HTMLOutputElement>("group-order").value = `${String(orbitOrder)} echoes`;
+    requireElement<HTMLElement>("mode-caption").textContent = "Move one point. Every reflection follows.";
     const mirrorCount = this.currentDistances().filter((distance) => distance <= 1e-8).length;
     const generatorState = this.customOrbitMode === "chiral"
       ? "interior · chiral orbit"
@@ -447,8 +447,14 @@ class GeometryLab {
           ? "mirror path · uniform transition"
           : "interior · full orbit";
     requireElement<HTMLElement>("generator-state").textContent = generatorState;
-    requireElement<HTMLElement>("object-state").textContent = generatorState;
-    this.updateTopology(polyhedron, title, this.customOrbitMode === "chiral" ? "Rotational Wythoff orbit" : "Wythoff orbit");
+    requireElement<HTMLElement>("object-state").textContent = this.customOrbitMode === "chiral"
+      ? "A twist that never touches a mirror"
+      : mirrorCount >= 2
+        ? "The point rests in a corner of the mirror room"
+        : mirrorCount === 1
+          ? "The point slides along one mirror"
+          : "The point is free inside the mirror room";
+    this.updateTopology(polyhedron, title, this.customOrbitMode === "chiral" ? "A twist without mirrors" : "A point in a mirror room");
     this.drawWythoffDiagram();
   }
 
@@ -484,9 +490,9 @@ class GeometryLab {
     const percent = Math.round(progress * 100);
     requireElement<HTMLOutputElement>("packing-progress-value").value = `${String(percent)}%`;
     requireElement<HTMLElement>("packing-note").textContent = progress === 0
-      ? "Twelve equal spheres touch a nucleus. Their generated center hull is cuboctahedral."
-      : `${String(contacts)} shell contacts hold while the common center radius contracts to ${frame.centerRadius.toFixed(3)}.`;
-    requireElement<HTMLElement>("mode-caption").textContent = "Packing becomes polyhedral relation.";
+      ? "Twelve equal spheres gather around one center. Their own centers sketch the first shell."
+      : `${String(contacts)} new touches appear as the shell pulls inward to ${frame.centerRadius.toFixed(3)}.`;
+    requireElement<HTMLElement>("mode-caption").textContent = "Twelve spheres discover a hidden skeleton.";
     const activeStep = progress < 0.08 ? 0 : progress > 0.92 ? 2 : 1;
     for (const item of document.querySelectorAll<HTMLElement>("#packing-steps li")) {
       const isActive = Number(item.dataset.step) === activeStep;
@@ -495,12 +501,12 @@ class GeometryLab {
       else item.removeAttribute("aria-current");
     }
     requireElement<HTMLElement>("object-state").textContent = activeStep === 0
-      ? "Nucleus present · 24 shell contacts"
+      ? "Twelve spheres gather around one center"
       : activeStep === 1
-        ? `Nucleus released · ${String(contacts)} shell contacts`
-        : "Golden rectangles close · 30 shell contacts";
+        ? `The center slips away · ${String(contacts)} new touches`
+        : "The shell clicks into an icosahedron";
     const title = progress === 0 ? "Cuboctahedral shell" : progress === 1 ? "Icosahedral shell" : "Tightening shell";
-    this.updateTopology(hull, title, "Twelve around one");
+    this.updateTopology(hull, title, "Twelve spheres, one shell");
   }
 
   private renderFCC(): void {
@@ -519,9 +525,9 @@ class GeometryLab {
       faceOpacity: 0.16,
     });
     this.stage.add(drawing.group);
-    requireElement<HTMLElement>("mode-caption").textContent = "Packing partitions continuous space.";
-    requireElement<HTMLElement>("object-state").textContent = "12 neighbor planes · two vertex radii";
-    this.updateTopology(derivation.cell, "Rhombic dodecahedron", "FCC Voronoi cell");
+    requireElement<HTMLElement>("mode-caption").textContent = "Every neighbor gets a fair share of space.";
+    requireElement<HTMLElement>("object-state").textContent = "Twelve neighbors carve out one shared cell";
+    this.updateTopology(derivation.cell, "Rhombic dodecahedron", "The hidden space cell");
   }
 
   private drawingStyle(polyhedron: Polyhedron) {
@@ -635,10 +641,6 @@ class GeometryLab {
 }
 
 try {
-  const basePath = import.meta.env.BASE_URL;
-  if (window.location.pathname === basePath || window.location.pathname === basePath.slice(0, -1)) {
-    window.history.replaceState({}, "", `${basePath}lab`);
-  }
   new GeometryLab();
 } catch (cause) {
   const error = requireElement<HTMLElement>("render-error");

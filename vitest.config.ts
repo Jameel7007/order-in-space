@@ -6,6 +6,7 @@ export default defineConfig({
     alias: {
       "@order-in-space/geometry": fileURLToPath(new URL("./packages/geometry/src/index.ts", import.meta.url)),
       "@order-in-space/render": fileURLToPath(new URL("./packages/render/src/index.ts", import.meta.url)),
+      "@order-in-space/scenes": fileURLToPath(new URL("./packages/scenes/src/index.ts", import.meta.url)),
     },
   },
   test: {

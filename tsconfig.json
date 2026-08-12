@@ -4,7 +4,8 @@
     "noEmit": true,
     "paths": {
       "@order-in-space/geometry": ["./packages/geometry/src/index.ts"],
-      "@order-in-space/render": ["./packages/render/src/index.ts"]
+      "@order-in-space/render": ["./packages/render/src/index.ts"],
+      "@order-in-space/scenes": ["./packages/scenes/src/index.ts"]
     }
   },
   "include": [

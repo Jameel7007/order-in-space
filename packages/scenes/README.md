@@ -1,4 +1,5 @@
 # Scenes package
 
-Reserved for normalized-progress narrative choreography. This package may consume render primitives; it must not own mathematical construction algorithms. Implementation begins only after the geometry and render milestones are stable.
+Normalized-progress narrative choreography. The package may consume geometry types and render primitives, but it does not own mathematical construction algorithms or read browser scroll state. The application maps ScrollTrigger progress into these deterministic scene models.
 
+The first implemented model is the reversible icosahedral portion of Scene 6, exposed as `sampleTruncationPath(t)`.
