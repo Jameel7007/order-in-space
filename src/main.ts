@@ -138,6 +138,7 @@ class GeometryLab {
   private readonly reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
   constructor() {
+    requireElement<HTMLAnchorElement>("lab-home").href = `${import.meta.env.BASE_URL}lab`;
     this.renderer = new WebGLRenderer({
       canvas: this.canvas,
       antialias: true,
@@ -496,7 +497,10 @@ class GeometryLab {
 }
 
 try {
-  if (window.location.pathname === "/") window.history.replaceState({}, "", "/lab");
+  const basePath = import.meta.env.BASE_URL;
+  if (window.location.pathname === basePath || window.location.pathname === basePath.slice(0, -1)) {
+    window.history.replaceState({}, "", `${basePath}lab`);
+  }
   new GeometryLab();
 } catch (cause) {
   const error = requireElement<HTMLElement>("render-error");

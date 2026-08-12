@@ -10,8 +10,6 @@
   "include": [
     "packages/**/*.ts",
     "src/**/*.ts",
-    "build/**/*.ts",
-    "worker/**/*.ts",
     "vite.config.ts",
     "vitest.config.ts"
   ]
