@@ -86,6 +86,8 @@ The shell-tightening narrative needs a precise continuous constraint model; the 
 
 ## Milestone 3 — Geometry laboratory
 
+**Status: complete (2026-08-12).** The `/lab` Vite application, reusable Three.js render primitives, generator/packing/FCC modes, responsive control surface, reduced-motion handling, runtime preview, and GitHub Pages deployment are complete.
+
 ### Files/modules
 
 Initialize the Vite application, implement `render` primitives, and add a `/lab` route with generator controls, topology readout, mirror-triangle inset, and debug toggles.

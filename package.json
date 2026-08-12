@@ -8,10 +8,10 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build:packages && node scripts/clean-app-dist.mjs && WRANGLER_WRITE_LOGS=false WRANGLER_LOG_PATH=.wrangler/wrangler.log vite build",
+    "build": "npm run build:packages && node scripts/clean-app-dist.mjs && vite build && node scripts/prepare-github-pages.mjs",
     "build:packages": "npm run build --workspace @order-in-space/geometry && npm run build --workspace @order-in-space/render",
     "check:boundaries": "node scripts/check-boundaries.mjs",
-    "dev": "npm run build:packages && WRANGLER_WRITE_LOGS=false WRANGLER_LOG_PATH=.wrangler/wrangler.log vite",
+    "dev": "npm run build:packages && vite",
     "preview": "vite preview",
     "test": "vitest run --config vitest.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
@@ -19,13 +19,11 @@
     "check": "npm run check:boundaries && npm run typecheck && npm run test && npm run build"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "1.52.0",
     "@types/node": "24.13.3",
     "@types/three": "0.185.4",
     "typescript": "7.0.2",
     "vite": "8.2.1",
-    "vitest": "4.1.10",
-    "wrangler": "4.122.0"
+    "vitest": "4.1.10"
   },
   "dependencies": {
     "@order-in-space/geometry": "*",
