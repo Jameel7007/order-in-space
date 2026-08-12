@@ -9,7 +9,7 @@
   ],
   "scripts": {
     "build": "npm run build:packages && node scripts/clean-app-dist.mjs && vite build && node scripts/prepare-github-pages.mjs",
-    "build:packages": "npm run build --workspace @order-in-space/geometry && npm run build --workspace @order-in-space/render",
+    "build:packages": "npm run build --workspace @order-in-space/geometry && npm run build --workspace @order-in-space/render && npm run build --workspace @order-in-space/scenes",
     "check:boundaries": "node scripts/check-boundaries.mjs",
     "dev": "npm run build:packages && vite",
     "preview": "vite preview",
@@ -28,6 +28,8 @@
   "dependencies": {
     "@order-in-space/geometry": "*",
     "@order-in-space/render": "*",
+    "@order-in-space/scenes": "*",
+    "gsap": "^3.15.0",
     "three": "0.185.1"
   },
   "engines": {

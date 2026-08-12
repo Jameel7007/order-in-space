@@ -6,12 +6,127 @@
     <meta name="theme-color" content="#eeece5" />
     <meta
       name="description"
-      content="A mathematical laboratory for the Order in Space geometry engine."
+      content="Move one point and discover an entire family of shapes—an interactive story about the hidden order of space."
     />
-    <title>Geometry Laboratory · Order in Space</title>
+    <title>Order in Space · Move one point, change the world</title>
   </head>
   <body>
-    <div id="app" class="lab-shell">
+    <div id="story-app" class="story-shell" hidden>
+      <a class="skip-link" href="#discovery">Skip to the transformation</a>
+      <header class="story-nav">
+        <a class="story-wordmark" href="./" aria-label="Order in Space home">
+          <span>Order in Space</span>
+          <small>An adventure in shape</small>
+        </a>
+        <nav aria-label="Primary navigation">
+          <span>Chapter 01</span>
+          <a href="./lab/">Open the shape lab <span aria-hidden="true">↗</span></a>
+        </nav>
+      </header>
+
+      <main>
+        <section class="story-hero" aria-labelledby="hero-title">
+          <div class="hero-copy">
+            <p class="story-kicker">A tiny move. A spectacular chain reaction.</p>
+            <h1 id="hero-title">Move one point.<br /><em>Change the whole world.</em></h1>
+            <p class="hero-intro">No formulas required. Follow one restless dot and watch it build an entire family of shapes.</p>
+            <a class="story-cta" href="#discovery">Show me how <span aria-hidden="true">↓</span></a>
+          </div>
+          <div class="hero-playground" aria-hidden="true">
+            <span class="hero-point"></span>
+            <span class="hero-ring hero-ring-one"></span>
+            <span class="hero-ring hero-ring-two"></span>
+            <span class="hero-ring hero-ring-three"></span>
+            <span class="hero-note">one point</span>
+            <span class="hero-note hero-note-many">many echoes</span>
+          </div>
+          <p class="scroll-invitation"><span></span>Scroll to set the point in motion</p>
+        </section>
+
+        <section id="discovery" class="discovery" aria-label="Move one point and transform a solid">
+          <div class="story-stage">
+            <canvas id="story-canvas" aria-label="A solid changing as one generating point moves"></canvas>
+            <div class="story-stage-wash" aria-hidden="true"></div>
+
+            <div class="chapter-mark">
+              <span>01</span>
+              <p>The shape-shifter</p>
+            </div>
+
+            <div class="mirror-room" aria-label="The moving point inside its triangular mirror room">
+              <div class="mirror-heading"><span>The tiny room</span><strong id="story-progress">0%</strong></div>
+              <svg viewBox="0 0 240 190" role="img" aria-label="A point moving inside a triangular room of mirrors">
+                <path d="M120 18 L22 166 L218 166 Z" />
+                <path class="mirror-ray" d="M120 18 L120 112 M22 166 L120 112 M218 166 L120 112" />
+                <circle id="story-generator" cx="120" cy="112" r="7" />
+              </svg>
+              <p>Move this dot and every reflection must follow.</p>
+            </div>
+
+            <div class="shape-identity" aria-live="polite">
+              <p id="story-invitation">Twelve corners wake up</p>
+              <h2 id="story-name">Icosahedron</h2>
+              <div class="friendly-stats">
+                <span><strong id="story-vertices">12</strong> corners</span>
+                <span><strong id="story-edges">30</strong> connections</span>
+                <span><strong id="story-faces">20</strong> faces</span>
+              </div>
+              <details>
+                <summary>Curious about the geometry?</summary>
+                <p id="story-technical">{3,5} · Wythoff family (2,3,5)</p>
+              </details>
+            </div>
+
+            <label class="point-scrubber" for="story-scrubber">
+              <span>Try it: move the point</span>
+              <input id="story-scrubber" type="range" min="0" max="1" step="0.001" value="0" />
+            </label>
+          </div>
+
+          <div class="story-beats" aria-label="Transformation explanation">
+            <article data-beat="0">
+              <p class="beat-number">First, meet the rule-breaker.</p>
+              <h2>One dot enters a room made of mirrors.</h2>
+              <p>It looks alone. It isn’t. The room can repeat that dot in every direction.</p>
+            </article>
+            <article data-beat="1">
+              <p class="beat-number">Then the echoes arrive.</p>
+              <h2>The football was hiding in the mirrors.</h2>
+              <p>Every copy obeys the original. At one special spot, pentagons and hexagons suddenly feel familiar.</p>
+            </article>
+            <article data-beat="2">
+              <p class="beat-number">Keep moving</p>
+              <h2>Triangles and pentagons trade places.</h2>
+              <p>One move becomes many moves. The whole family shifts together like a geometric flock.</p>
+            </article>
+            <article data-beat="3">
+              <p class="beat-number">Keep going</p>
+              <h2>Edges make new friendships.</h2>
+              <p>The rule stays exactly the same. Only the first point changes its mind.</p>
+            </article>
+            <article data-beat="4">
+              <p class="beat-number">One point. A family of worlds.</p>
+              <h2>You just changed a solid without touching it.</h2>
+              <p>That is the idea at the heart of this story: form is a relationship, not a fixed object.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="story-invitation" aria-labelledby="invitation-title">
+          <p class="story-kicker">Now the point is yours</p>
+          <h2 id="invitation-title">Ready to make something strange?</h2>
+          <p>Open the lab to move the generator freely, meet the full family, or see how twelve spheres can build a world around one center.</p>
+          <a class="invitation-button" href="./lab/">Enter the shape lab <span aria-hidden="true">↗</span></a>
+          <div class="next-chapter">
+            <span>Coming next</span>
+            <strong>Twelve around one</strong>
+            <p>How a crowd of spheres discovers a hidden skeleton.</p>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div id="app" class="lab-shell" hidden>
       <main class="viewport" aria-label="Interactive three-dimensional geometry viewport">
         <canvas id="geometry-canvas"></canvas>
 
@@ -32,9 +147,9 @@
         </div>
 
         <section class="topology-card" aria-live="polite" aria-atomic="true">
-          <p class="eyebrow" id="object-family">Wythoff orbit</p>
+          <p class="eyebrow" id="object-family">A point in a mirror room</p>
           <h1 id="object-title">Icosahedron</h1>
-          <p class="object-state" id="object-state">Generator on two mirrors · regular closure</p>
+          <p class="object-state" id="object-state">The point rests in a corner of the mirror room</p>
           <dl>
             <div><dt>V</dt><dd id="vertex-count">12</dd></div>
             <div><dt>E</dt><dd id="edge-count">30</dd></div>
@@ -51,8 +166,8 @@
       <aside class="control-panel" aria-label="Geometry laboratory controls">
         <div class="panel-intro">
           <p class="eyebrow">Construction study</p>
-          <h2>Move the cause.<br />Watch the form.</h2>
-          <p>Change a generating condition. The drawing answers with the geometry it permits.</p>
+          <h2>Make a shape.<br />Find its secret.</h2>
+          <p>Start with the big moves. The geometry is here whenever curiosity takes you deeper.</p>
         </div>
 
         <fieldset class="study-switcher">
@@ -60,30 +175,30 @@
           <label>
             <input type="radio" name="study" value="wythoff" checked />
             <span class="study-index">01</span>
-            <span><strong>Generator</strong><small>A point reflected into form</small></span>
+            <span><strong>Shape-shifter</strong><small>Move one point, change everything</small></span>
           </label>
           <label>
             <input type="radio" name="study" value="packing" />
             <span class="study-index">02</span>
-            <span><strong>Packing</strong><small>Twelve centers tighten</small></span>
+            <span><strong>Twelve around one</strong><small>Pull a shell of spheres together</small></span>
           </label>
           <label>
             <input type="radio" name="study" value="fcc" />
             <span class="study-index">03</span>
-            <span><strong>Space cell</strong><small>Neighbors divide space</small></span>
+            <span><strong>Hidden space cell</strong><small>See how neighbors share the gaps</small></span>
           </label>
         </fieldset>
 
         <section id="wythoff-controls" class="control-section">
           <div class="section-heading">
             <span>Generator</span>
-            <output id="group-order">group order 120</output>
+            <output id="group-order">120 echoes</output>
           </div>
 
-          <label class="field-label" for="solid-select">Named position</label>
+          <label class="field-label" for="solid-select">Pick a shape</label>
           <select id="solid-select"></select>
 
-          <label class="field-label" for="family-select">Mirror family</label>
+          <label class="field-label" for="family-select">Mirror-room family</label>
           <select id="family-select">
             <option value="233">(2,3,3) · tetrahedral</option>
             <option value="234">(2,3,4) · octahedral</option>
@@ -112,55 +227,55 @@
 
         <section id="packing-controls" class="control-section" hidden>
           <div class="section-heading">
-            <span>Shell contraction</span>
+            <span>Pull the shell together</span>
             <output id="packing-progress-value">0%</output>
           </div>
           <div class="range-field">
-            <label for="packing-progress"><span>Cuboctahedron</span><span>Icosahedron</span></label>
+            <label for="packing-progress"><span>Touching</span><span>Tightened</span></label>
             <input id="packing-progress" type="range" min="0" max="1" step="0.001" value="0" />
           </div>
           <ol class="construction-steps" id="packing-steps" aria-label="Packing construction stages">
-            <li data-step="0"><span>01</span>Contact shell</li>
-            <li data-step="1"><span>02</span>Nucleus released</li>
-            <li data-step="2"><span>03</span>Golden closure</li>
+            <li data-step="0"><span>01</span>Twelve gather</li>
+            <li data-step="1"><span>02</span>Center slips away</li>
+            <li data-step="2"><span>03</span>New shape clicks</li>
           </ol>
           <label class="check-field">
             <input id="show-dual" type="checkbox" />
-            <span>Construct face-center dual</span>
+            <span>Reveal the inside-out twin</span>
           </label>
-          <p class="control-note" id="packing-note">Twelve equal spheres touch a nucleus. Their centers generate the hull.</p>
+          <p class="control-note" id="packing-note">Twelve equal spheres gather around one center. Their own centers sketch the first shell.</p>
         </section>
 
         <section id="fcc-controls" class="control-section" hidden>
-          <div class="section-heading"><span>Voronoi derivation</span><output>12 bisectors</output></div>
+          <div class="section-heading"><span>How the gap takes shape</span><output>12 neighbors</output></div>
           <ol class="derivation-ledger" aria-label="FCC Voronoi derivation">
-            <li><span>12</span><small>nearest centers</small></li>
-            <li><span>12</span><small>bisector planes</small></li>
-            <li><span>14</span><small>cell vertices</small></li>
-            <li><span>12</span><small>rhombic faces</small></li>
+            <li><span>12</span><small>nearby spheres</small></li>
+            <li><span>12</span><small>fair-share walls</small></li>
+            <li><span>14</span><small>corners</small></li>
+            <li><span>12</span><small>diamond faces</small></li>
           </ol>
-          <p class="control-note">Each nearest FCC neighbor contributes one perpendicular-bisector plane. Their common interior is the rhombic dodecahedron.</p>
+          <p class="control-note">Each neighbor claims the space closest to it. The fair boundaries between them uncover this diamond-faced cell.</p>
         </section>
 
         <section class="display-controls">
           <div class="section-heading"><span>Drawing</span><output id="edge-count-label">30 edges</output></div>
-          <label class="check-field"><input id="show-faces" type="checkbox" checked /><span>Supporting faces</span></label>
-          <label class="check-field"><input id="show-vertices" type="checkbox" /><span>Vertex points</span></label>
-          <label class="check-field"><input id="show-guide" type="checkbox" checked /><span id="guide-label">Master sphere</span></label>
-          <label class="check-field"><input id="auto-rotate" type="checkbox" /><span>Slow rotation</span></label>
+          <label class="check-field"><input id="show-faces" type="checkbox" checked /><span>Soft surfaces</span></label>
+          <label class="check-field"><input id="show-vertices" type="checkbox" /><span>Corner dots</span></label>
+          <label class="check-field"><input id="show-guide" type="checkbox" checked /><span id="guide-label">Shared sphere guide</span></label>
+          <label class="check-field"><input id="auto-rotate" type="checkbox" /><span>Let it drift</span></label>
           <div class="button-row">
-            <button id="reset-view" type="button">Reset camera</button>
-            <button id="share-state" type="button">Copy state link</button>
+            <button id="reset-view" type="button">Bring it back</button>
+            <button id="share-state" type="button">Share this shape</button>
           </div>
           <p id="copy-status" class="copy-status" role="status" aria-live="polite"></p>
         </section>
 
         <footer>
-          <span>Master radius · R = 1</span>
+          <span>Every shape shares one sphere</span>
           <span>Geometry kernel · verified</span>
         </footer>
       </aside>
     </div>
-    <script type="module" src="/src/main.ts"></script>
+    <script type="module" src="/src/router.ts"></script>
   </body>
 </html>
