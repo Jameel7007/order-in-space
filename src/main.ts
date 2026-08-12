@@ -25,6 +25,7 @@ import {
 import {
   PolyhedronDrawing,
   clearAndDispose,
+  createCircumsphereGuide,
   createSphereMesh,
 } from "@order-in-space/render";
 import {
@@ -32,6 +33,7 @@ import {
   Color,
   DirectionalLight,
   Group,
+  NeutralToneMapping,
   OrthographicCamera,
   Scene,
   SRGBColorSpace,
@@ -124,7 +126,9 @@ class GeometryLab {
   private renderScheduled = false;
   private customOrbitMode: WythoffOrbitMode = "full";
 
-  private readonly modeSelect = requireElement<HTMLSelectElement>("mode-select");
+  private readonly modeInputs = Array.from(
+    document.querySelectorAll<HTMLInputElement>('input[name="study"]'),
+  );
   private readonly solidSelect = requireElement<HTMLSelectElement>("solid-select");
   private readonly familySelect = requireElement<HTMLSelectElement>("family-select");
   private readonly distanceInputs = [0, 1, 2].map((index) => (
@@ -134,6 +138,7 @@ class GeometryLab {
   private readonly showDual = requireElement<HTMLInputElement>("show-dual");
   private readonly showFaces = requireElement<HTMLInputElement>("show-faces");
   private readonly showVertices = requireElement<HTMLInputElement>("show-vertices");
+  private readonly showGuide = requireElement<HTMLInputElement>("show-guide");
   private readonly autoRotate = requireElement<HTMLInputElement>("auto-rotate");
   private readonly reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
@@ -146,6 +151,8 @@ class GeometryLab {
       powerPreference: "high-performance",
     });
     this.renderer.outputColorSpace = SRGBColorSpace;
+    this.renderer.toneMapping = NeutralToneMapping;
+    this.renderer.toneMappingExposure = 0.96;
     this.renderer.setClearColor(0xeeece5, 1);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
@@ -172,7 +179,8 @@ class GeometryLab {
     this.bindControls();
     this.resize();
     new ResizeObserver(() => this.resize()).observe(this.canvas.parentElement ?? this.canvas);
-    this.selectNamedSolid("p:icosahedron");
+    this.applyURLState();
+    this.updateControlVisibility();
     this.renderCurrent();
     this.animate();
   }
@@ -197,10 +205,12 @@ class GeometryLab {
   }
 
   private bindControls(): void {
-    this.modeSelect.addEventListener("change", () => {
+    this.modeInputs.forEach((input) => input.addEventListener("change", () => {
+      if (!input.checked) return;
       this.updateControlVisibility();
+      this.resetCamera();
       this.scheduleRender();
-    });
+    }));
     this.solidSelect.addEventListener("change", () => {
       if (this.solidSelect.value !== "custom") this.selectNamedSolid(this.solidSelect.value);
       this.scheduleRender();
@@ -221,6 +231,7 @@ class GeometryLab {
     this.showDual.addEventListener("change", () => this.scheduleRender());
     this.showFaces.addEventListener("change", () => this.scheduleRender());
     this.showVertices.addEventListener("change", () => this.scheduleRender());
+    this.showGuide.addEventListener("change", () => this.scheduleRender());
     this.autoRotate.addEventListener("change", () => {
       this.controls.autoRotate = this.autoRotate.checked && !this.reducedMotion.matches;
     });
@@ -228,6 +239,87 @@ class GeometryLab {
       this.controls.autoRotate = this.autoRotate.checked && !this.reducedMotion.matches;
     });
     requireElement<HTMLButtonElement>("reset-view").addEventListener("click", () => this.resetCamera());
+    requireElement<HTMLButtonElement>("share-state").addEventListener("click", () => {
+      void this.copyStateLink();
+    });
+  }
+
+  private currentMode(): LabMode {
+    const selected = this.modeInputs.find((input) => input.checked)?.value;
+    return selected === "packing" || selected === "fcc" ? selected : "wythoff";
+  }
+
+  private setMode(mode: LabMode): void {
+    for (const input of this.modeInputs) input.checked = input.value === mode;
+  }
+
+  private applyURLState(): void {
+    const params = new URL(window.location.href).searchParams;
+    const mode = params.get("mode");
+    this.setMode(mode === "packing" || mode === "fcc" ? mode : "wythoff");
+
+    const solid = params.get("solid") ?? "p:icosahedron";
+    if (NAMED_SOLIDS.some((entry) => entry.value === solid)) {
+      this.selectNamedSolid(solid);
+    } else {
+      this.selectNamedSolid("p:icosahedron");
+    }
+
+    const family = params.get("family");
+    const distances = ["d0", "d1", "d2"].map((key) => Number(params.get(key)));
+    if (family !== null && FAMILY_TRIANGLES[family] !== undefined) {
+      this.familySelect.value = family;
+      if (distances.every((value) => Number.isFinite(value) && value >= 0)
+        && distances.some((value) => value > 0)) {
+        this.solidSelect.value = "custom";
+        this.setDistances(distances as unknown as MirrorDistances);
+      }
+    }
+
+    const packingProgress = Number(params.get("t"));
+    if (Number.isFinite(packingProgress)) {
+      this.packingProgress.value = String(Math.min(1, Math.max(0, packingProgress)));
+    }
+    this.showDual.checked = params.get("dual") === "1";
+    this.showFaces.checked = params.get("faces") !== "0";
+    this.showVertices.checked = params.get("vertices") === "1";
+    this.showGuide.checked = params.get("guide") !== "0";
+  }
+
+  private persistURLState(): void {
+    const params = new URLSearchParams();
+    const mode = this.currentMode();
+    params.set("mode", mode);
+    if (this.solidSelect.value === "custom") {
+      params.set("solid", "custom");
+      params.set("family", this.familySelect.value);
+      this.currentDistances().forEach((value, index) => params.set(`d${String(index)}`, value.toFixed(3)));
+    } else {
+      params.set("solid", this.solidSelect.value);
+    }
+    if (mode === "packing") {
+      params.set("t", Number(this.packingProgress.value).toFixed(3));
+      if (this.showDual.checked) params.set("dual", "1");
+    }
+    if (!this.showFaces.checked) params.set("faces", "0");
+    if (this.showVertices.checked) params.set("vertices", "1");
+    if (!this.showGuide.checked) params.set("guide", "0");
+    const nextURL = `${window.location.pathname}?${params.toString()}`;
+    window.history.replaceState({}, "", nextURL);
+  }
+
+  private async copyStateLink(): Promise<void> {
+    this.persistURLState();
+    const status = requireElement<HTMLElement>("copy-status");
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      status.textContent = "State link copied.";
+    } catch {
+      status.textContent = "Copy unavailable; use the address bar.";
+    }
+    window.setTimeout(() => {
+      status.textContent = "";
+    }, 2400);
   }
 
   private scheduleRender(): void {
@@ -281,7 +373,7 @@ class GeometryLab {
   }
 
   private updateControlVisibility(): void {
-    const mode = this.modeSelect.value as LabMode;
+    const mode = this.currentMode();
     requireElement<HTMLElement>("wythoff-controls").hidden = mode !== "wythoff";
     requireElement<HTMLElement>("packing-controls").hidden = mode !== "packing";
     requireElement<HTMLElement>("fcc-controls").hidden = mode !== "fcc";
@@ -289,10 +381,12 @@ class GeometryLab {
 
   private renderCurrent(): void {
     try {
-      const mode = this.modeSelect.value as LabMode;
+      const mode = this.currentMode();
       if (mode === "packing") this.renderPacking();
       else if (mode === "fcc") this.renderFCC();
       else this.renderWythoff();
+      this.updateStudyChrome(mode);
+      this.persistURLState();
       const error = requireElement<HTMLElement>("render-error");
       error.hidden = true;
       error.textContent = "";
@@ -301,6 +395,14 @@ class GeometryLab {
       error.textContent = cause instanceof Error ? cause.message : "The geometry could not be constructed.";
       error.hidden = false;
     }
+  }
+
+  private updateStudyChrome(mode: LabMode): void {
+    const number = mode === "wythoff" ? "01" : mode === "packing" ? "02" : "03";
+    requireElement<HTMLElement>("study-number").textContent = `Study ${number} / 03`;
+    const guideLabel = mode === "fcc" ? "Outer cell radius" : mode === "packing" ? "Center sphere" : "Master sphere";
+    requireElement<HTMLElement>("guide-label").textContent = guideLabel;
+    requireElement<HTMLElement>("radius-legend-label").textContent = `${guideLabel} · R`;
   }
 
   private renderWythoff(): void {
@@ -336,6 +438,16 @@ class GeometryLab {
     const orbitOrder = this.customOrbitMode === "chiral" ? system.group.length / 2 : system.group.length;
     requireElement<HTMLOutputElement>("group-order").value = `orbit order ${String(orbitOrder)}`;
     requireElement<HTMLElement>("mode-caption").textContent = "One generator, reflected into order.";
+    const mirrorCount = this.currentDistances().filter((distance) => distance <= 1e-8).length;
+    const generatorState = this.customOrbitMode === "chiral"
+      ? "interior · chiral orbit"
+      : mirrorCount >= 2
+        ? "corner · regular closure"
+        : mirrorCount === 1
+          ? "mirror path · uniform transition"
+          : "interior · full orbit";
+    requireElement<HTMLElement>("generator-state").textContent = generatorState;
+    requireElement<HTMLElement>("object-state").textContent = generatorState;
     this.updateTopology(polyhedron, title, this.customOrbitMode === "chiral" ? "Rotational Wythoff orbit" : "Wythoff orbit");
     this.drawWythoffDiagram();
   }
@@ -346,6 +458,9 @@ class GeometryLab {
     const frame = tightenFirstShell(progress, sphereRadius);
     const hull = hullOfCenters(frame.spheres, "tightening shell hull");
     clearAndDispose(this.stage);
+    if (this.showGuide.checked) {
+      this.stage.add(createCircumsphereGuide(hull.circumradius, { opacity: 0.09 }));
+    }
     this.stage.add(createSphereMesh(frame.spheres, { color: 0xa7957d, opacity: 0.14 }));
     const nucleusOpacity = Math.max(0, 0.24 * (1 - progress * 4));
     if (nucleusOpacity > 0.005) {
@@ -372,6 +487,18 @@ class GeometryLab {
       ? "Twelve equal spheres touch a nucleus. Their generated center hull is cuboctahedral."
       : `${String(contacts)} shell contacts hold while the common center radius contracts to ${frame.centerRadius.toFixed(3)}.`;
     requireElement<HTMLElement>("mode-caption").textContent = "Packing becomes polyhedral relation.";
+    const activeStep = progress < 0.08 ? 0 : progress > 0.92 ? 2 : 1;
+    for (const item of document.querySelectorAll<HTMLElement>("#packing-steps li")) {
+      const isActive = Number(item.dataset.step) === activeStep;
+      item.toggleAttribute("data-active", isActive);
+      if (isActive) item.setAttribute("aria-current", "step");
+      else item.removeAttribute("aria-current");
+    }
+    requireElement<HTMLElement>("object-state").textContent = activeStep === 0
+      ? "Nucleus present · 24 shell contacts"
+      : activeStep === 1
+        ? `Nucleus released · ${String(contacts)} shell contacts`
+        : "Golden rectangles close · 30 shell contacts";
     const title = progress === 0 ? "Cuboctahedral shell" : progress === 1 ? "Icosahedral shell" : "Tightening shell";
     this.updateTopology(hull, title, "Twelve around one");
   }
@@ -381,6 +508,9 @@ class GeometryLab {
     const packing = closestPacking(1, radius);
     const derivation = deriveRhombicDodecahedronFromFCC(radius);
     clearAndDispose(this.stage);
+    if (this.showGuide.checked) {
+      this.stage.add(createCircumsphereGuide(derivation.cell.circumradius, { color: 0x8d5c46, opacity: 0.1 }));
+    }
     this.stage.add(createSphereMesh(packing, { color: 0xa7957d, opacity: 0.075 }));
     const drawing = new PolyhedronDrawing(derivation.cell, {
       ...this.drawingStyle(derivation.cell),
@@ -390,6 +520,7 @@ class GeometryLab {
     });
     this.stage.add(drawing.group);
     requireElement<HTMLElement>("mode-caption").textContent = "Packing partitions continuous space.";
+    requireElement<HTMLElement>("object-state").textContent = "12 neighbor planes · two vertex radii";
     this.updateTopology(derivation.cell, "Rhombic dodecahedron", "FCC Voronoi cell");
   }
 
@@ -404,6 +535,9 @@ class GeometryLab {
 
   private replaceStage(polyhedron: Polyhedron): void {
     clearAndDispose(this.stage);
+    if (this.showGuide.checked) {
+      this.stage.add(createCircumsphereGuide(polyhedron.circumradius));
+    }
     const drawing = new PolyhedronDrawing(polyhedron, this.drawingStyle(polyhedron));
     this.stage.add(drawing.group);
   }
@@ -481,10 +615,14 @@ class GeometryLab {
     const height = Math.max(1, this.canvas.clientHeight);
     const aspect = width / height;
     const frustumHeight = 4.25;
+    // Mobile compositions reserve the lower field for the topology plate.
+    // An asymmetric frustum keeps the construction clear of that type without
+    // changing its geometry or the orbit-control pivot.
+    const verticalOffset = window.innerWidth <= 820 ? -0.56 : 0;
     this.camera.left = (-frustumHeight * aspect) / 2;
     this.camera.right = (frustumHeight * aspect) / 2;
-    this.camera.top = frustumHeight / 2;
-    this.camera.bottom = -frustumHeight / 2;
+    this.camera.top = frustumHeight / 2 + verticalOffset;
+    this.camera.bottom = -frustumHeight / 2 + verticalOffset;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(width, height, false);
   }

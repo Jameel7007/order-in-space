@@ -51,6 +51,7 @@ export function createEdgeMesh(polyhedron: Polyhedron, style: PolyhedronDrawingS
     color: resolved.edgeColor,
     roughness: 0.82,
     metalness: 0,
+    flatShading: true,
   });
   const mesh = new InstancedMesh(geometry, material, polyhedron.edges.length);
   mesh.name = "polyhedron edges";
@@ -115,6 +116,9 @@ export function createFaceMesh(polyhedron: Polyhedron, style: PolyhedronDrawingS
     roughness: 1,
     metalness: 0,
     side: DoubleSide,
+    polygonOffset: true,
+    polygonOffsetFactor: 1,
+    polygonOffsetUnits: 1,
   });
   const mesh = new Mesh(geometry, material);
   mesh.name = "supporting faces";
@@ -181,4 +185,3 @@ export class PolyhedronDrawing {
     if (resolved.showVertices) this.group.add(createVertexMesh(this.polyhedron, resolved));
   }
 }
-

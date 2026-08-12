@@ -2,7 +2,13 @@ import { platonic } from "@order-in-space/geometry";
 import { describe, expect, it } from "vitest";
 import { Matrix4, Quaternion, Vector3 } from "three";
 
-import { createEdgeMesh, createFaceMesh, createVertexMesh, disposeObject } from "../src/index.js";
+import {
+  createCircumsphereGuide,
+  createEdgeMesh,
+  createFaceMesh,
+  createVertexMesh,
+  disposeObject,
+} from "../src/index.js";
 
 describe("renderer-independent geometry adapters", () => {
   it("creates one instanced cylinder per abstract edge", () => {
@@ -37,5 +43,16 @@ describe("renderer-independent geometry adapters", () => {
     const vertices = createVertexMesh(icosahedron);
     expect(vertices.count).toBe(12);
     disposeObject(vertices);
+  });
+
+  it("draws the master radius as three subordinate great circles", () => {
+    const guide = createCircumsphereGuide(2.5, { segments: 24 });
+    expect(guide.children).toHaveLength(3);
+    for (const circle of guide.children) {
+      const position = (circle as { geometry?: { getAttribute(name: string): { count: number } } }).geometry
+        ?.getAttribute("position");
+      expect(position?.count).toBe(24);
+    }
+    disposeObject(guide);
   });
 });

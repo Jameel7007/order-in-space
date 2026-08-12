@@ -1,6 +1,7 @@
 import {
   BufferGeometry,
   Group,
+  Line,
   Material,
   Mesh,
   type Object3D,
@@ -16,7 +17,7 @@ function disposeMaterial(material: Material | Material[]): void {
 
 export function disposeObject(object: Object3D): void {
   object.traverse((child) => {
-    if (child instanceof Mesh) {
+    if (child instanceof Mesh || child instanceof Line) {
       (child.geometry as BufferGeometry).dispose();
       disposeMaterial(child.material);
     }
@@ -29,4 +30,3 @@ export function clearAndDispose(group: Group): void {
     disposeObject(child);
   }
 }
-

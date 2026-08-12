@@ -114,6 +114,8 @@ WebGPU fallback compatibility and transparent nested depth ordering.
 
 ## Milestone 4 — Visual language
 
+**Status: complete (2026-08-12).** The graphite-edge / paper-ground system, restrained face treatment, construction-radius guides, orthographic camera, lighting, topology typography, authored three-study control hierarchy, deterministic URL fixtures, mobile composition, touch sizing, and reduced-motion behavior are locked. See `docs/MILESTONE_4_REPORT.md`.
+
 Lock edge width/antialiasing, face treatment, background, lighting, camera, typography baseline, mobile composition, and reduced-motion behavior. Add visual regression fixtures for representative solids and dense nesting. Complete when geometry stays legible without glow or face dominance.
 
 ## Milestone 5 — Load-bearing scenes

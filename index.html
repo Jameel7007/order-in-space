@@ -20,12 +20,21 @@
             <span>Order in Space</span>
             <small>Geometry laboratory · 03</small>
           </a>
-          <p id="mode-caption">One generator, reflected into order.</p>
+          <div class="study-caption">
+            <span id="study-number">Study 01 / 03</span>
+            <p id="mode-caption">One generator, reflected into order.</p>
+          </div>
         </header>
+
+        <div class="radius-legend" aria-hidden="true">
+          <span></span>
+          <small id="radius-legend-label">Master sphere · R</small>
+        </div>
 
         <section class="topology-card" aria-live="polite" aria-atomic="true">
           <p class="eyebrow" id="object-family">Wythoff orbit</p>
           <h1 id="object-title">Icosahedron</h1>
+          <p class="object-state" id="object-state">Generator on two mirrors · regular closure</p>
           <dl>
             <div><dt>V</dt><dd id="vertex-count">12</dd></div>
             <div><dt>E</dt><dd id="edge-count">30</dd></div>
@@ -43,15 +52,27 @@
         <div class="panel-intro">
           <p class="eyebrow">Construction study</p>
           <h2>Move the cause.<br />Watch the form.</h2>
-          <p>Every line below is reconstructed from the current mathematical state.</p>
+          <p>Change a generating condition. The drawing answers with the geometry it permits.</p>
         </div>
 
-        <label class="field-label" for="mode-select">Study</label>
-        <select id="mode-select">
-          <option value="wythoff">Wythoff orbit</option>
-          <option value="packing">Twelve around one</option>
-          <option value="fcc">FCC Voronoi cell</option>
-        </select>
+        <fieldset class="study-switcher">
+          <legend>Choose a study</legend>
+          <label>
+            <input type="radio" name="study" value="wythoff" checked />
+            <span class="study-index">01</span>
+            <span><strong>Generator</strong><small>A point reflected into form</small></span>
+          </label>
+          <label>
+            <input type="radio" name="study" value="packing" />
+            <span class="study-index">02</span>
+            <span><strong>Packing</strong><small>Twelve centers tighten</small></span>
+          </label>
+          <label>
+            <input type="radio" name="study" value="fcc" />
+            <span class="study-index">03</span>
+            <span><strong>Space cell</strong><small>Neighbors divide space</small></span>
+          </label>
+        </fieldset>
 
         <section id="wythoff-controls" class="control-section">
           <div class="section-heading">
@@ -71,6 +92,7 @@
 
           <div class="diagram-wrap">
             <canvas id="wythoff-diagram" width="520" height="280" aria-label="Wythoff mirror triangle and generator position"></canvas>
+            <div class="diagram-caption"><span>Mirror distances</span><span id="generator-state">boundary point</span></div>
           </div>
 
           <div class="range-field">
@@ -97,6 +119,11 @@
             <label for="packing-progress"><span>Cuboctahedron</span><span>Icosahedron</span></label>
             <input id="packing-progress" type="range" min="0" max="1" step="0.001" value="0" />
           </div>
+          <ol class="construction-steps" id="packing-steps" aria-label="Packing construction stages">
+            <li data-step="0"><span>01</span>Contact shell</li>
+            <li data-step="1"><span>02</span>Nucleus released</li>
+            <li data-step="2"><span>03</span>Golden closure</li>
+          </ol>
           <label class="check-field">
             <input id="show-dual" type="checkbox" />
             <span>Construct face-center dual</span>
@@ -106,6 +133,12 @@
 
         <section id="fcc-controls" class="control-section" hidden>
           <div class="section-heading"><span>Voronoi derivation</span><output>12 bisectors</output></div>
+          <ol class="derivation-ledger" aria-label="FCC Voronoi derivation">
+            <li><span>12</span><small>nearest centers</small></li>
+            <li><span>12</span><small>bisector planes</small></li>
+            <li><span>14</span><small>cell vertices</small></li>
+            <li><span>12</span><small>rhombic faces</small></li>
+          </ol>
           <p class="control-note">Each nearest FCC neighbor contributes one perpendicular-bisector plane. Their common interior is the rhombic dodecahedron.</p>
         </section>
 
@@ -113,12 +146,17 @@
           <div class="section-heading"><span>Drawing</span><output id="edge-count-label">30 edges</output></div>
           <label class="check-field"><input id="show-faces" type="checkbox" checked /><span>Supporting faces</span></label>
           <label class="check-field"><input id="show-vertices" type="checkbox" /><span>Vertex points</span></label>
+          <label class="check-field"><input id="show-guide" type="checkbox" checked /><span id="guide-label">Master sphere</span></label>
           <label class="check-field"><input id="auto-rotate" type="checkbox" /><span>Slow rotation</span></label>
-          <button id="reset-view" type="button">Reset view</button>
+          <div class="button-row">
+            <button id="reset-view" type="button">Reset camera</button>
+            <button id="share-state" type="button">Copy state link</button>
+          </div>
+          <p id="copy-status" class="copy-status" role="status" aria-live="polite"></p>
         </section>
 
         <footer>
-          <span>R = 1</span>
+          <span>Master radius · R = 1</span>
           <span>Geometry kernel · verified</span>
         </footer>
       </aside>
