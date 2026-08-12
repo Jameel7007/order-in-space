@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "paths": {
+      "@order-in-space/geometry": ["./packages/geometry/src/index.ts"],
+      "@order-in-space/render": ["./packages/render/src/index.ts"]
+    }
+  },
+  "include": [
+    "packages/**/*.ts",
+    "src/**/*.ts",
+    "build/**/*.ts",
+    "worker/**/*.ts",
+    "vite.config.ts",
+    "vitest.config.ts"
+  ]
+}

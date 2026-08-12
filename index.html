@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#eeece5" />
+    <meta
+      name="description"
+      content="A mathematical laboratory for the Order in Space geometry engine."
+    />
+    <title>Geometry Laboratory · Order in Space</title>
+  </head>
+  <body>
+    <div id="app" class="lab-shell">
+      <main class="viewport" aria-label="Interactive three-dimensional geometry viewport">
+        <canvas id="geometry-canvas"></canvas>
+
+        <header class="masthead">
+          <a class="wordmark" href="/lab" aria-label="Order in Space geometry laboratory">
+            <span>Order in Space</span>
+            <small>Geometry laboratory · 03</small>
+          </a>
+          <p id="mode-caption">One generator, reflected into order.</p>
+        </header>
+
+        <section class="topology-card" aria-live="polite" aria-atomic="true">
+          <p class="eyebrow" id="object-family">Wythoff orbit</p>
+          <h1 id="object-title">Icosahedron</h1>
+          <dl>
+            <div><dt>V</dt><dd id="vertex-count">12</dd></div>
+            <div><dt>E</dt><dd id="edge-count">30</dd></div>
+            <div><dt>F</dt><dd id="face-count">20</dd></div>
+            <div><dt>χ</dt><dd id="euler-count">2</dd></div>
+          </dl>
+          <p id="object-detail">{3,5} · common radius 1.000</p>
+        </section>
+
+        <p class="viewport-hint">Drag to orbit · pinch or wheel to scale</p>
+        <div id="render-error" class="render-error" role="alert" hidden></div>
+      </main>
+
+      <aside class="control-panel" aria-label="Geometry laboratory controls">
+        <div class="panel-intro">
+          <p class="eyebrow">Construction study</p>
+          <h2>Move the cause.<br />Watch the form.</h2>
+          <p>Every line below is reconstructed from the current mathematical state.</p>
+        </div>
+
+        <label class="field-label" for="mode-select">Study</label>
+        <select id="mode-select">
+          <option value="wythoff">Wythoff orbit</option>
+          <option value="packing">Twelve around one</option>
+          <option value="fcc">FCC Voronoi cell</option>
+        </select>
+
+        <section id="wythoff-controls" class="control-section">
+          <div class="section-heading">
+            <span>Generator</span>
+            <output id="group-order">group order 120</output>
+          </div>
+
+          <label class="field-label" for="solid-select">Named position</label>
+          <select id="solid-select"></select>
+
+          <label class="field-label" for="family-select">Mirror family</label>
+          <select id="family-select">
+            <option value="233">(2,3,3) · tetrahedral</option>
+            <option value="234">(2,3,4) · octahedral</option>
+            <option value="235">(2,3,5) · icosahedral</option>
+          </select>
+
+          <div class="diagram-wrap">
+            <canvas id="wythoff-diagram" width="520" height="280" aria-label="Wythoff mirror triangle and generator position"></canvas>
+          </div>
+
+          <div class="range-field">
+            <label for="distance-0"><span>Mirror 1</span><output id="distance-0-value">0.000</output></label>
+            <input id="distance-0" type="range" min="0" max="1.5" step="0.001" value="0" />
+          </div>
+          <div class="range-field">
+            <label for="distance-1"><span>Mirror 2</span><output id="distance-1-value">0.000</output></label>
+            <input id="distance-1" type="range" min="0" max="1.5" step="0.001" value="0" />
+          </div>
+          <div class="range-field">
+            <label for="distance-2"><span>Mirror 3</span><output id="distance-2-value">1.000</output></label>
+            <input id="distance-2" type="range" min="0" max="1.5" step="0.001" value="1" />
+          </div>
+          <p class="control-note">The full group keeps correspondence stable while the point moves. Topology changes only on mirror boundaries.</p>
+        </section>
+
+        <section id="packing-controls" class="control-section" hidden>
+          <div class="section-heading">
+            <span>Shell contraction</span>
+            <output id="packing-progress-value">0%</output>
+          </div>
+          <div class="range-field">
+            <label for="packing-progress"><span>Cuboctahedron</span><span>Icosahedron</span></label>
+            <input id="packing-progress" type="range" min="0" max="1" step="0.001" value="0" />
+          </div>
+          <label class="check-field">
+            <input id="show-dual" type="checkbox" />
+            <span>Construct face-center dual</span>
+          </label>
+          <p class="control-note" id="packing-note">Twelve equal spheres touch a nucleus. Their centers generate the hull.</p>
+        </section>
+
+        <section id="fcc-controls" class="control-section" hidden>
+          <div class="section-heading"><span>Voronoi derivation</span><output>12 bisectors</output></div>
+          <p class="control-note">Each nearest FCC neighbor contributes one perpendicular-bisector plane. Their common interior is the rhombic dodecahedron.</p>
+        </section>
+
+        <section class="display-controls">
+          <div class="section-heading"><span>Drawing</span><output id="edge-count-label">30 edges</output></div>
+          <label class="check-field"><input id="show-faces" type="checkbox" checked /><span>Supporting faces</span></label>
+          <label class="check-field"><input id="show-vertices" type="checkbox" /><span>Vertex points</span></label>
+          <label class="check-field"><input id="auto-rotate" type="checkbox" /><span>Slow rotation</span></label>
+          <button id="reset-view" type="button">Reset view</button>
+        </section>
+
+        <footer>
+          <span>R = 1</span>
+          <span>Geometry kernel · verified</span>
+        </footer>
+      </aside>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
