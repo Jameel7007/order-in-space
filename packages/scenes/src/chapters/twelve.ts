@@ -50,8 +50,8 @@ export function sampleTwelve(progress: number): SceneFrame {
     const distance = 1 + (1 - arrival) * TRAVEL_MULTIPLIER;
     return { ...sphere, center: scale(sphere.center, distance) };
   });
-  const hullOpacity = smooth(phase(progress, 0.7, 0.84));
-  const settle = smooth(phase(progress, 0.86, 1));
+  const settle = smooth(phase(progress, 0.66, 0.8));
+  const hullOpacity = smooth(phase(progress, 0.74, 0.88));
   const shellOpacity = mix(1, OPACITY.shell, settle);
   const nucleusOpacity = mix(1, OPACITY.nucleus, settle);
   const visibleShell = travelling

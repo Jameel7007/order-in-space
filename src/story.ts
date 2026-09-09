@@ -1,27 +1,14 @@
-import { eulerCharacteristic, wythoff, type Polyhedron } from "@order-in-space/geometry";
 import {
-  PolyhedronDrawing,
-  clearAndDispose,
-  createCircumsphereGuide,
-} from "@order-in-space/render";
-import {
-  ICOSAHEDRAL_TRUNCATION_WAYPOINTS,
-  sampleTruncationPath,
+  STORY_CHAPTERS,
+  activeBeat,
+  sampleChapter,
+  type Chapter,
+  type SceneFrame,
 } from "@order-in-space/scenes";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import {
-  AmbientLight,
-  Color,
-  DirectionalLight,
-  Group,
-  NeutralToneMapping,
-  OrthographicCamera,
-  Scene,
-  SRGBColorSpace,
-  WebGLRenderer,
-} from "three";
 
+import { StoryStage } from "./story-stage.js";
 import "./story.css";
 
 function requireElement<T extends Element>(id: string): T {
@@ -30,192 +17,350 @@ function requireElement<T extends Element>(id: string): T {
   return element as unknown as T;
 }
 
-function nearbyWaypoint(progress: number) {
-  return ICOSAHEDRAL_TRUNCATION_WAYPOINTS.find((waypoint) => (
-    Math.abs(waypoint.progress - progress) <= 0.018
-  ));
+function pad(number: number): string {
+  return String(number).padStart(2, "0");
+}
+
+function element<K extends keyof HTMLElementTagNameMap>(
+  tag: K,
+  className?: string,
+  text?: string,
+): HTMLElementTagNameMap[K] {
+  const node = document.createElement(tag);
+  if (className !== undefined) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+class TextCache {
+  private readonly last = new Map<string, string>();
+
+  set(id: string, value: string): void {
+    if (this.last.get(id) === value) return;
+    this.last.set(id, value);
+    requireElement<HTMLElement>(id).textContent = value;
+  }
 }
 
 class ShapeStory {
   private readonly canvas = requireElement<HTMLCanvasElement>("story-canvas");
-  private readonly scene = new Scene();
-  private readonly stage = new Group();
-  private readonly camera = new OrthographicCamera(-2, 2, 2, -2, 0.01, 100);
-  private readonly renderer: WebGLRenderer;
-  private readonly reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-  private readonly beats = Array.from(document.querySelectorAll<HTMLElement>("[data-beat]"));
   private readonly scrubber = requireElement<HTMLInputElement>("story-scrubber");
-  private lastGeometryKey = "";
+  private readonly reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  private readonly text = new TextCache();
+  private readonly sections: HTMLElement[] = [];
+  private readonly beatArticles = new Map<number, HTMLElement[]>();
+  private readonly railItems: HTMLElement[] = [];
+  private stage: StoryStage | undefined;
+  private current = { chapter: 1, progress: 0 };
+  private lastBeatKey = "";
 
   constructor() {
     gsap.registerPlugin(ScrollTrigger);
-    this.renderer = new WebGLRenderer({
-      canvas: this.canvas,
-      antialias: true,
-      alpha: true,
-      powerPreference: "high-performance",
-    });
-    this.renderer.outputColorSpace = SRGBColorSpace;
-    this.renderer.toneMapping = NeutralToneMapping;
-    this.renderer.toneMappingExposure = 0.98;
-    this.renderer.setClearColor(0xf1eee5, 0);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-
-    this.scene.background = new Color(0xf1eee5);
-    this.scene.add(this.stage);
-    this.scene.add(new AmbientLight(0xfffbef, 2.1));
-    const key = new DirectionalLight(0xffeed5, 3.4);
-    key.position.set(4, 6, 5);
-    this.scene.add(key);
-    const fill = new DirectionalLight(0x94a7ba, 0.72);
-    fill.position.set(-4, -2, -3);
-    this.scene.add(fill);
-
-    this.camera.position.set(3.4, 2.4, 4.3);
-    this.camera.lookAt(0, 0, 0);
+    this.buildContents();
+    this.buildChapters();
+    this.buildBeats();
+    this.buildRail();
+    this.buildTextVersion();
+    this.startStage();
     this.bindInteraction();
-    this.resize();
-    new ResizeObserver(() => this.resize()).observe(this.canvas.parentElement ?? this.canvas);
-    this.setProgress(0);
+    this.applyComposition();
+    new ResizeObserver(() => this.applyComposition()).observe(this.canvas.parentElement ?? this.canvas);
+    this.setProgress(1, 0);
     this.createScrollStory();
-    this.animateHero();
+    this.hideLoader();
+  }
+
+  private buildContents(): void {
+    const list = requireElement<HTMLOListElement>("contents-list");
+    for (const chapter of STORY_CHAPTERS) {
+      const item = element("li");
+      const link = element("a");
+      link.href = `#chapter-${String(chapter.number)}`;
+      link.append(element("span", "contents-number", pad(chapter.number)));
+      link.append(element("strong", undefined, chapter.title));
+      link.append(element("small", undefined, chapter.kicker));
+      link.addEventListener("click", () => {
+        requireElement<HTMLDetailsElement>("contents-menu").open = false;
+      });
+      item.append(link);
+      list.append(item);
+    }
+  }
+
+  private buildChapters(): void {
+    const container = requireElement<HTMLElement>("story-chapters");
+    for (const chapter of STORY_CHAPTERS) {
+      const section = element("section", "story-chapter");
+      section.id = `chapter-${String(chapter.number)}`;
+      section.dataset.chapter = String(chapter.number);
+      section.style.height = `${String(chapter.screens * 100)}svh`;
+      section.setAttribute("aria-label", `Chapter ${String(chapter.number)}: ${chapter.title}`);
+      container.append(section);
+      this.sections.push(section);
+    }
+  }
+
+  private buildBeats(): void {
+    const container = requireElement<HTMLElement>("story-beats");
+    for (const chapter of STORY_CHAPTERS) {
+      const articles = chapter.beats.map((beat, index) => {
+        const article = element("article");
+        article.dataset.chapter = String(chapter.number);
+        article.dataset.beat = String(index);
+        article.hidden = true;
+        article.append(element("p", "beat-number", beat.eyebrow));
+        article.append(element("h2", undefined, beat.heading));
+        article.append(element("p", undefined, beat.body));
+        container.append(article);
+        return article;
+      });
+      this.beatArticles.set(chapter.number, articles);
+    }
+  }
+
+  private buildRail(): void {
+    const rail = requireElement<HTMLOListElement>("chapter-rail");
+    for (const chapter of STORY_CHAPTERS) {
+      const item = element("li");
+      const link = element("a");
+      link.href = `#chapter-${String(chapter.number)}`;
+      link.setAttribute("aria-label", `Chapter ${String(chapter.number)}: ${chapter.title}`);
+      link.append(element("span", undefined, pad(chapter.number)));
+      item.append(link);
+      rail.append(item);
+      this.railItems.push(item);
+    }
+  }
+
+  private buildTextVersion(): void {
+    const container = requireElement<HTMLElement>("story-text");
+    for (const chapter of STORY_CHAPTERS) {
+      const block = element("section");
+      block.append(element("h2", undefined, `${pad(chapter.number)} · ${chapter.title}`));
+      for (const beat of chapter.beats) {
+        block.append(element("h3", undefined, beat.heading));
+        block.append(element("p", undefined, beat.body));
+      }
+      container.append(block);
+    }
+  }
+
+  private startStage(): void {
+    try {
+      this.stage = new StoryStage(this.canvas);
+    } catch (cause) {
+      this.showFallback(cause);
+    }
+  }
+
+  private showFallback(cause: unknown): void {
+    const shell = requireElement<HTMLElement>("story-app");
+    shell.classList.add("story-fallback");
+    requireElement<HTMLElement>("story-text").hidden = false;
+    const message = element("p", "story-error");
+    message.setAttribute("role", "alert");
+    message.textContent = cause instanceof Error
+      ? `The drawings could not start in this browser (${cause.message}). The story is available as text below.`
+      : "The drawings could not start in this browser. The story is available as text below.";
+    shell.prepend(message);
   }
 
   private bindInteraction(): void {
     this.scrubber.addEventListener("input", () => {
-      this.setProgress(Number(this.scrubber.value));
+      this.setProgress(this.current.chapter, Number(this.scrubber.value));
     });
     this.scrubber.addEventListener("change", () => {
-      const sequence = requireElement<HTMLElement>("discovery");
-      const available = Math.max(0, sequence.offsetHeight - window.innerHeight);
-      const target = sequence.offsetTop + available * Number(this.scrubber.value);
+      const section = this.sections[this.current.chapter - 1];
+      if (section === undefined) return;
+      const available = Math.max(0, section.offsetHeight - window.innerHeight);
       window.scrollTo({
-        top: target,
+        top: section.offsetTop + available * Number(this.scrubber.value),
         behavior: this.reducedMotion.matches ? "auto" : "smooth",
       });
+    });
+    window.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      requireElement<HTMLDetailsElement>("contents-menu").open = false;
     });
   }
 
   private createScrollStory(): void {
-    ScrollTrigger.create({
-      trigger: "#discovery",
-      start: "top top",
-      end: "bottom bottom",
-      scrub: this.reducedMotion.matches ? false : 0.55,
-      onUpdate: ({ progress }) => this.setProgress(progress),
-    });
-  }
-
-  private animateHero(): void {
-    if (this.reducedMotion.matches) return;
-    gsap.timeline({ repeat: -1, repeatDelay: 0.45 })
-      .fromTo(".hero-point", { scale: 0.8 }, { scale: 1.18, duration: 0.65, ease: "power2.out" })
-      .to(".hero-ring-one", { scale: 1.14, opacity: 0.22, duration: 0.8 }, 0)
-      .to(".hero-ring-two", { scale: 1.11, rotate: 22, opacity: 0.2, duration: 0.95 }, 0.12)
-      .to(".hero-ring-three", { scale: 1.08, rotate: -16, opacity: 0.16, duration: 1.05 }, 0.24)
-      .to(".hero-point", { scale: 0.92, duration: 0.55, ease: "sine.inOut" });
-  }
-
-  private setProgress(progress: number): void {
-    const sample = sampleTruncationPath(progress);
-    const geometryKey = sample.distances.map((value) => value.toFixed(2)).join(":");
-    let polyhedron: Polyhedron | undefined;
-    if (geometryKey !== this.lastGeometryKey) {
-      polyhedron = wythoff(sample.triangle, sample.distances, {
-        symbol: sample.atNamedPosition ? sample.nearestWaypoint.symbol : "moving point",
+    const hero = document.querySelector<HTMLElement>(".story-hero");
+    if (hero !== null) {
+      ScrollTrigger.create({
+        trigger: hero,
+        start: "top top",
+        end: "bottom top",
+        onUpdate: () => this.scheduleProgress(1, 0),
       });
-      this.rebuildDrawing(polyhedron);
-      this.lastGeometryKey = geometryKey;
+    }
+    this.sections.forEach((section, index) => {
+      const number = index + 1;
+      ScrollTrigger.create({
+        trigger: section,
+        start: "top top",
+        end: "bottom bottom",
+        scrub: this.reducedMotion.matches ? false : 0.5,
+        onUpdate: ({ progress }) => this.scheduleProgress(number, progress),
+        onEnter: () => this.scheduleProgress(number, 0),
+        onEnterBack: () => this.scheduleProgress(number, 1),
+      });
+    });
+    ScrollTrigger.refresh();
+  }
+
+  private scheduleProgress(chapter: number, progress: number): void {
+    // ScrollTrigger already coalesces updates on GSAP's ticker; drawing
+    // directly keeps the picture one frame behind the scroll at most.
+    this.setProgress(chapter, progress);
+  }
+
+  setProgress(chapterNumber: number, progress: number): SceneFrame {
+    this.current = { chapter: chapterNumber, progress };
+    const frame = sampleChapter(chapterNumber, progress);
+    this.stage?.draw(frame);
+    const chapter = STORY_CHAPTERS[chapterNumber - 1];
+    if (chapter !== undefined) this.updateHud(chapter, progress, frame);
+    this.updateHeroState();
+    return frame;
+  }
+
+  private updateHeroState(): void {
+    const hero = document.querySelector<HTMLElement>(".story-hero");
+    if (hero === null) return;
+    const inHero = window.scrollY < hero.offsetHeight * 0.62;
+    requireElement<HTMLElement>("story-app").classList.toggle("is-hero", inHero);
+  }
+
+  /** Development hook: draw any chapter position without scrolling. */
+  snapshot(chapterNumber: number, progress: number, width = 420): string {
+    if (this.stage === undefined) throw new Error("No stage");
+    this.setProgress(chapterNumber, progress);
+    const source = this.stage.renderer.domElement;
+    const scale = width / source.width;
+    const thumbnail = document.createElement("canvas");
+    thumbnail.width = width;
+    thumbnail.height = Math.round(source.height * scale);
+    const context = thumbnail.getContext("2d");
+    if (context === null) throw new Error("No 2D context");
+    context.fillStyle = "#f1eee5";
+    context.fillRect(0, 0, thumbnail.width, thumbnail.height);
+    context.drawImage(source, 0, 0, thumbnail.width, thumbnail.height);
+    return thumbnail.toDataURL("image/jpeg", 0.82);
+  }
+
+  private updateHud(chapter: Chapter, progress: number, frame: SceneFrame): void {
+    this.text.set("chapter-number", pad(chapter.number));
+    this.text.set("chapter-title", chapter.title);
+    this.text.set("story-name", frame.readout.name);
+    this.text.set("story-invitation", frame.readout.invitation);
+    this.text.set("story-measure", frame.readout.measure);
+    this.text.set("story-technical", frame.readout.detail);
+    this.text.set("scrubber-label", `Try it: move through chapter ${pad(chapter.number)}`);
+    const stats = requireElement<HTMLElement>("friendly-stats");
+    if (frame.readout.counts === undefined) {
+      stats.hidden = true;
+    } else {
+      stats.hidden = false;
+      this.text.set("story-vertices", String(frame.readout.counts.vertices));
+      this.text.set("story-edges", String(frame.readout.counts.edges));
+      this.text.set("story-faces", String(frame.readout.counts.faces));
     }
 
-    this.stage.rotation.set(
-      0.18 + Math.sin(sample.progress * Math.PI) * 0.08,
-      -0.58 + sample.progress * 1.08,
-      -0.06 + sample.progress * 0.12,
-    );
-    this.updateGenerator(sample.distances);
-    this.updateCopy(sample.progress, polyhedron);
-    this.renderer.render(this.scene, this.camera);
-  }
+    const percent = Math.round(progress * 100);
+    this.scrubber.value = progress.toFixed(3);
+    this.scrubber.setAttribute("aria-valuetext", `${String(percent)}% of chapter ${String(chapter.number)}`);
 
-  private rebuildDrawing(polyhedron: Polyhedron): void {
-    clearAndDispose(this.stage);
-    this.stage.add(createCircumsphereGuide(polyhedron.circumradius, {
-      color: 0x956852,
-      opacity: 0.12,
-    }));
-    const drawing = new PolyhedronDrawing(polyhedron, {
-      edgeColor: 0x25231f,
-      edgeRadius: Math.max(0.008, 0.022 - polyhedron.edges.length * 0.000055),
-      faceColor: 0xcab499,
-      faceOpacity: 0.13,
-      showFaces: true,
-      showVertices: false,
+    this.updateMirrorRoom(frame);
+    this.updateBeats(chapter, progress);
+    this.railItems.forEach((item, index) => {
+      item.toggleAttribute("data-active", index === chapter.number - 1);
+      item.toggleAttribute("data-passed", index < chapter.number - 1);
     });
-    this.stage.add(drawing.group);
   }
 
-  private updateGenerator(distances: readonly number[]): void {
-    const [a = 0, b = 0, c = 0] = distances;
+  private updateMirrorRoom(frame: SceneFrame): void {
+    const room = requireElement<HTMLElement>("mirror-room");
+    if (frame.generator === undefined) {
+      room.hidden = true;
+      return;
+    }
+    room.hidden = false;
+    const [a = 0, b = 0, c = 0] = frame.generator.distances;
     const sum = Math.max(a + b + c, 1e-9);
     const x = (a * 120 + b * 22 + c * 218) / sum;
     const y = (a * 18 + b * 166 + c * 166) / sum;
     const point = requireElement<SVGCircleElement>("story-generator");
     point.setAttribute("cx", x.toFixed(2));
     point.setAttribute("cy", y.toFixed(2));
+    requireElement<SVGPathElement>("mirror-rays").setAttribute(
+      "d",
+      `M120 18 L${x.toFixed(1)} ${y.toFixed(1)} M22 166 L${x.toFixed(1)} ${y.toFixed(1)} M218 166 L${x.toFixed(1)} ${y.toFixed(1)}`,
+    );
+    this.text.set("mirror-room-label", frame.generator.room.split(" · ")[0] ?? "The mirror room");
+    this.text.set("story-orbit", frame.generator.orbit === "chiral" ? "half the echoes" : "every echo");
   }
 
-  private updateCopy(progress: number, rebuilt?: Polyhedron): void {
-    const named = nearbyWaypoint(progress);
-    const name = named?.name ?? "A shape in motion";
-    const invitation = named?.invitation ?? "Something new is taking shape";
-    requireElement<HTMLElement>("story-name").textContent = name;
-    requireElement<HTMLElement>("story-invitation").textContent = invitation;
-    requireElement<HTMLElement>("story-progress").textContent = `${String(Math.round(progress * 100))}%`;
-    this.scrubber.value = progress.toFixed(3);
-
-    if (rebuilt !== undefined) {
-      requireElement<HTMLElement>("story-vertices").textContent = String(rebuilt.vertices.length);
-      requireElement<HTMLElement>("story-edges").textContent = String(rebuilt.edges.length);
-      requireElement<HTMLElement>("story-faces").textContent = String(rebuilt.faces.length);
-      requireElement<HTMLElement>("story-technical").textContent = named === undefined
-        ? `Moving Wythoff generator · family (2,3,5) · Euler ${String(eulerCharacteristic(rebuilt))}`
-        : `${named.symbol} · Wythoff family (2,3,5) · Euler ${String(eulerCharacteristic(rebuilt))}`;
+  private updateBeats(chapter: Chapter, progress: number): void {
+    const active = activeBeat(chapter, progress);
+    const key = `${String(chapter.number)}:${String(active)}`;
+    if (key === this.lastBeatKey) return;
+    this.lastBeatKey = key;
+    for (const [number, articles] of this.beatArticles) {
+      articles.forEach((article, index) => {
+        const isCurrentChapter = number === chapter.number;
+        article.hidden = !isCurrentChapter;
+        article.toggleAttribute("data-active", isCurrentChapter && index === active);
+      });
     }
-
-    const activeBeat = Math.min(this.beats.length - 1, Math.round(progress * (this.beats.length - 1)));
-    this.beats.forEach((beat, index) => beat.toggleAttribute("data-active", index === activeBeat));
   }
 
-  private resize(): void {
-    const width = Math.max(1, this.canvas.clientWidth);
-    const height = Math.max(1, this.canvas.clientHeight);
-    const aspect = width / height;
-    const portraitStory = window.innerWidth <= 920 && aspect < 1;
-    this.stage.position.x = portraitStory ? 0 : aspect > 1.25 ? 0.5 : 0.18;
-    const frustumHeight = window.innerWidth <= 680 ? 5.05 : portraitStory ? 5.45 : 4.35;
-    const verticalOffset = portraitStory ? -0.72 : 0;
-    this.camera.left = (-frustumHeight * aspect) / 2;
-    this.camera.right = (frustumHeight * aspect) / 2;
-    this.camera.top = frustumHeight / 2 + verticalOffset;
-    this.camera.bottom = -frustumHeight / 2 + verticalOffset;
-    this.camera.updateProjectionMatrix();
-    this.renderer.setSize(width, height, false);
-    this.renderer.render(this.scene, this.camera);
+  private applyComposition(): void {
+    if (this.stage === undefined) return;
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    const aspect = width / Math.max(1, height);
+    const portrait = width <= 920 && width < height;
+    // Chapters are composed for a wide field. Portrait screens keep at least
+    // 3.2 world units visible across, and lift the field above the copy.
+    const frustumHeight = portrait ? Math.max(5.2, 3.2 / aspect) : 4.35;
+    this.stage.setComposition({
+      frustumHeight,
+      horizontalShift: portrait ? 0 : aspect > 1.25 ? 0.55 : 0.2,
+      verticalShift: portrait ? -0.09 * frustumHeight : 0,
+    });
+    this.stage.draw(sampleChapter(this.current.chapter, this.current.progress));
     ScrollTrigger.refresh();
+  }
+
+  private hideLoader(): void {
+    const loader = requireElement<HTMLElement>("story-loader");
+    loader.classList.add("is-done");
+    window.setTimeout(() => {
+      loader.hidden = true;
+    }, this.reducedMotion.matches ? 0 : 520);
+  }
+}
+
+declare global {
+  interface Window {
+    __orderInSpace?: ShapeStory;
   }
 }
 
 try {
-  new ShapeStory();
+  const story = new ShapeStory();
+  if (import.meta.env.DEV) window.__orderInSpace = story;
 } catch (cause) {
   const story = document.getElementById("story-app");
+  const loader = document.getElementById("story-loader");
+  if (loader !== null) loader.hidden = true;
   if (story !== null) {
     const message = document.createElement("p");
     message.className = "story-error";
     message.textContent = cause instanceof Error
-      ? `The shape story could not begin: ${cause.message}`
-      : "The shape story could not begin in this browser.";
+      ? `The story could not begin: ${cause.message}`
+      : "The story could not begin in this browser.";
     story.prepend(message);
   }
 }

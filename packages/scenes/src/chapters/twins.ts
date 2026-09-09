@@ -98,7 +98,7 @@ export function sampleTwins(progress: number): SceneFrame {
       detail: compound
         ? `cube ${String(cube.vertices.length)} corners ↔ octahedron ${String(octahedron.faces.length)} faces · shared midsphere ${midradius(cube).toFixed(3)}`
         : `octahedron scale ${octahedronScale.toFixed(3)} · corners on face centers at ${birthScale.toFixed(3)}`,
-      measure: `${String(cube.vertices.length)} ↔ ${String(octahedron.faces.length)}`,
+      measure: `${String(cube.vertices.length)} corners ↔ ${String(octahedron.faces.length)} faces · ${String(cube.faces.length)} faces ↔ ${String(octahedron.vertices.length)} corners`,
       counts: counts(featured),
     },
   };

@@ -1,5 +1,8 @@
 # Scenes package
 
-Normalized-progress narrative choreography. The package may consume geometry types and render primitives, but it does not own mathematical construction algorithms or read browser scroll state. The application maps ScrollTrigger progress into these deterministic scene models.
+Normalized-progress narrative choreography. The package consumes geometry types and constructions, but it does not own mathematical algorithms, import Three.js, or read browser scroll state. The application maps ScrollTrigger progress into these deterministic chapter models and draws the frames they return.
 
-The first implemented model is the reversible icosahedral portion of Scene 6, exposed as `sampleTruncationPath(t)`.
+- `frame.ts`: the renderer-independent frame description and `frameSignature`, a geometry-only fingerprint used to prove seamless chapter boundaries and the exact return.
+- `chapters/`: the nine chapter models, each a pure `sample(progress)` with its own copy.
+- `story.ts`: chapter ordering, `sampleStory(globalProgress)` over 0–9, and beat selection.
+- `world.ts`: shared radii, opacities, and the periodic camera drift.

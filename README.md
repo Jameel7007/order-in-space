@@ -2,13 +2,15 @@
 
 Order in Space is a geometry-first, scroll-driven study of polyhedral construction. The repository was initialized from an empty workspace on 2026-08-12.
 
-Milestones 1–4 are complete and Milestone 5 is underway. The renderer-independent kernel produces all five Platonic and thirteen Archimedean solids, including snub forms derived from an equal-edge solve on the rotational subgroup. It also generates multi-shell FCC sphere packing, derives the cuboctahedral first-shell hull, continuously tightens that shell into the icosahedral/golden-rectangle relationship, and derives the rhombic dodecahedron from FCC Voronoi bisectors. The public root now opens with a plain-language, scroll-driven slice of Scene 6, while `/lab` remains the deeper paper-and-graphite geometry instrument.
+All seven milestones are complete. The renderer-independent kernel produces all five Platonic and thirteen Archimedean solids, including snub forms derived from an equal-edge solve on the rotational subgroup. It also generates multi-shell FCC sphere packing, derives the cuboctahedral first-shell hull, continuously tightens that shell into the icosahedral/golden-rectangle relationship, folds regular polygons around a corner to show why only five solids close, and derives the rhombic dodecahedron and its space-filling neighbors from FCC Voronoi bisectors.
+
+The public root is a nine-chapter, scroll-driven story: a point becomes a sphere, corners close, twelve spheres gather, twins appear, the shell tightens to the golden icosahedron, one moving point makes all eighteen solids, the lattice grows, each sphere claims its cell, and everything returns to the point. Every frame is a pure function of scroll position, chapter boundaries are proven seamless, and the last frame equals the first. `/lab` remains the deeper paper-and-graphite geometry instrument.
 
 ## Packages
 
 - `packages/geometry`: pure TypeScript mathematics. It must never import Three.js, browser APIs, or GPU APIs.
-- `packages/render`: future conversion of abstract geometry into visual objects. It may consume `geometry`, but knows nothing about scroll.
-- `packages/scenes`: future normalized-progress choreography. It may consume `render`, but owns no geometry algorithms.
+- `packages/render`: conversion of abstract geometry into Three.js objects (instanced edges, faces, spheres, struts, polygon sheets, sphere guides). It may consume `geometry`, but knows nothing about scroll.
+- `packages/scenes`: normalized-progress choreography. Nine chapter models sample renderer-independent frames; it consumes `geometry` only and owns no construction algorithms.
 
 ## Commands
 
@@ -27,4 +29,4 @@ See [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md) for repository 
 
 The visual-system decisions and deterministic review states are recorded in [`docs/MILESTONE_4_REPORT.md`](docs/MILESTONE_4_REPORT.md).
 
-The first story-scene implementation and remaining Milestone 5 work are recorded in [`docs/MILESTONE_5_PROGRESS.md`](docs/MILESTONE_5_PROGRESS.md).
+The story scenes are recorded in [`docs/MILESTONE_5_PROGRESS.md`](docs/MILESTONE_5_PROGRESS.md) and [`docs/MILESTONE_6_REPORT.md`](docs/MILESTONE_6_REPORT.md); the finish pass (captions, responsive choreography, loader, About, accessibility, fallback, performance, deployment checks) is in [`docs/MILESTONE_7_REPORT.md`](docs/MILESTONE_7_REPORT.md).

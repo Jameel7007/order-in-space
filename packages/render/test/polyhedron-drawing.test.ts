@@ -1,6 +1,6 @@
 import { platonic } from "@order-in-space/geometry";
 import { describe, expect, it } from "vitest";
-import { Matrix4, Quaternion, Vector3 } from "three";
+import { type InstancedMesh, Matrix4, type Mesh, Quaternion, Vector3 } from "three";
 
 import {
   createCircumsphereGuide,
@@ -54,5 +54,30 @@ describe("renderer-independent geometry adapters", () => {
       expect(position?.count).toBe(24);
     }
     disposeObject(guide);
+  });
+});
+
+describe("free segments and polygons", () => {
+  it("draws one strut per segment", async () => {
+    const { createSegmentMesh } = await import("../src/index.js");
+    const mesh = createSegmentMesh([
+      [{ x: 0, y: 0, z: 0 }, { x: 1, y: 0, z: 0 }],
+      [{ x: 0, y: 0, z: 0 }, { x: 0, y: 2, z: 0 }],
+    ], { radius: 0.02 });
+    expect(mesh.count).toBe(2);
+    disposeObject(mesh);
+  });
+
+  it("outlines every polygon and fills it by fan triangulation", async () => {
+    const { createPolygonGroup } = await import("../src/index.js");
+    const square = [
+      { x: 0, y: 0, z: 0 }, { x: 1, y: 0, z: 0 }, { x: 1, y: 1, z: 0 }, { x: 0, y: 1, z: 0 },
+    ];
+    const group = createPolygonGroup([square, square]);
+    const faces = group.getObjectByName("polygon faces") as Mesh | undefined;
+    const edges = group.getObjectByName("polygon edges") as InstancedMesh | undefined;
+    expect(faces?.geometry.getAttribute("position").count).toBe(2 * 2 * 3);
+    expect(edges?.count).toBe(8);
+    disposeObject(group);
   });
 });

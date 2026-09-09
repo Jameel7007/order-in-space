@@ -19,7 +19,7 @@ import { ICOSAHEDRAL_RADIUS, OPACITY, SPHERE_RADIUS, cameraPose } from "../world
 import { generatorEndTetrahedron } from "./generator.js";
 
 export const LATTICE_SHELLS = 3;
-export const SHELL_OPACITY: readonly number[] = [OPACITY.nucleus, OPACITY.shell, 0.3, 0.22];
+export const SHELL_OPACITY: readonly number[] = [OPACITY.nucleus, OPACITY.shell, 0.12, 0.08];
 export const LATTICE_ZOOM = 0.42;
 
 interface LatticeModel {
@@ -92,7 +92,7 @@ export function sampleLattice(progress: number): SceneFrame {
     key: `struts:${String(shell)}`,
     segments,
     role: "strut",
-    opacity: 0.55 * shellReveal(progress, shell) * (shell === 0 ? 0 : 1),
+    opacity: 0.8 * shellReveal(progress, shell) * (shell === 0 ? 0 : 1),
   }));
   const hullOpacity = smooth(phase(progress, 0.82, 0.92));
   const visibleCount = model.spheres.filter((sphere) => shellReveal(progress, sphere.shell) >= 1 - 1e-9).length;

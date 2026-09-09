@@ -71,7 +71,7 @@ export function sampleCell(progress: number): SceneFrame {
     key: `struts:${String(shell)}`,
     segments,
     role: "strut" as const,
-    opacity: shell === 0 ? 0 : 0.55 * (shell <= 1 ? 1 - strutFade : 1 - outerFade),
+    opacity: shell === 0 ? 0 : 0.8 * (shell <= 1 ? 1 - strutFade : 1 - outerFade),
   }));
   const walls = model.walls.map((polygon, index) => ({
     key: `wall:${String(index)}`,

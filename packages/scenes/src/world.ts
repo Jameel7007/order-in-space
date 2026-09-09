@@ -10,11 +10,13 @@ export const SHELL_RADIUS = 2 * SPHERE_RADIUS;
 export const ICOSAHEDRAL_RADIUS = Math.sqrt(1 + PHI * PHI) * SPHERE_RADIUS;
 
 export const OPACITY = {
-  shell: 0.42,
-  shellGhost: 0.16,
+  shell: 0.2,
+  shellGhost: 0.1,
   nucleus: 0.62,
   nucleusGhost: 0.3,
   guide: 0.9,
+  /** The spherepoint turns translucent while corners fold on its surface. */
+  veil: 0.18,
 } as const;
 
 export const CHAPTER_COUNT = 9;

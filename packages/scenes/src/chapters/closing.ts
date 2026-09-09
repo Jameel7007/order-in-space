@@ -84,6 +84,12 @@ export function sampleClosing(progress: number): SceneFrame {
     return vec3(grown.x + apex.x, grown.y + apex.y, grown.z + apex.z);
   }));
 
+  // Turn the spherepoint into a translucent ground while the corners fold on
+  // it, and restore it at both ends so the neighboring chapters join exactly.
+  const veil = Math.min(smooth(phase(progress, 0, 0.03)), 1 - smooth(phase(progress, 0.97, 1)));
+  const sphereOpacity = mix(1, OPACITY.veil, veil);
+  const pose = cameraPose(1 + progress);
+  const pitchLift = 0.42 * Math.min(smooth(phase(progress, 0, 0.16)), 1 - smooth(phase(progress, 0.84, 1)));
   const deficiency = angularDeficiency(posed?.polyhedron ?? platonic("icosahedron"));
   const totalDeficiency = posed === undefined ? 0 : deficiency.total;
   const closed = fold.closed;
@@ -104,12 +110,12 @@ export function sampleClosing(progress: number): SceneFrame {
       key: "spherepoint",
       spheres: [{ center: vec3(0, 0, 0), radius: SPHERE_RADIUS, shell: 0 }],
       role: "point",
-      opacity: 1,
+      opacity: sphereOpacity,
     }],
     polygons: visible([{ key: `fold:${String(episodeIndex)}`, polygons, role: "fold", opacity: foldOpacity }]),
     lines: [],
     guides: [{ key: "master", radius: SPHERE_RADIUS, opacity: OPACITY.guide }],
-    camera: { ...cameraPose(1 + progress), zoom: CLOSE_ZOOM, focus: vec3(0, 0, 0) },
+    camera: { yaw: pose.yaw, pitch: pose.pitch + pitchLift, zoom: CLOSE_ZOOM, focus: vec3(0, 0, 0) },
     readout: {
       name,
       invitation: episode.solid === undefined

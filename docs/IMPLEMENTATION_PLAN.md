@@ -120,15 +120,19 @@ Lock edge width/antialiasing, face treatment, background, lighting, camera, typo
 
 ## Milestone 5 — Load-bearing scenes
 
-**Status: in progress (2026-08-12).** The first public Scene 6 slice now maps reversible scroll progress to a genuine moving Wythoff generator across five named icosahedral positions. The new root story explains the construction in plain language and leaves the technical lab at `/lab`. See `docs/MILESTONE_5_PROGRESS.md`.
+**Status: complete (2026-09-09).** Scene 6 walks all three mirror rooms with declared alternation and room-change boundaries; Scene 3 brings twelve spheres to contact; Scene 1 is the exact opening and return condition. See `docs/MILESTONE_5_PROGRESS.md`.
 
 Implement Scene 6, then Scene 3, then Scene 1 using reversible `setProgress(t)` state. Test forward/backward determinism, topology boundary handling, packing provenance, and scene transitions. Complete when continuous transformation, derivation, and presentation all work in production rendering.
 
 ## Milestone 6 — Remaining scenes
 
+**Status: complete (2026-09-09).** See `docs/MILESTONE_6_REPORT.md`.
+
 Implement Scenes 2, 4, 5, 7, 8, and 9 from reusable construction stages. Add angular-deficiency, duality involution/incidence, golden-rectangle, lattice, and exact-return tests. Complete when the nine scenes form one reversible geometric argument without scene-local math hacks.
 
 ## Milestone 7 — Finish
+
+**Status: complete (2026-09-09).** See `docs/MILESTONE_7_REPORT.md`.
 
 Add verified captions, responsive/mobile choreography, loader, About content, accessibility, fallback handling, performance/resource reuse, and production deployment checks. Run unit/property tests, typecheck, lint when configured, build, browser checks, reduced-motion checks, and final dependency/diff review.
 
