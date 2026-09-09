@@ -51,3 +51,25 @@ export function isFaceWoundOutward(polyhedron: Polyhedron, faceIndex: number, ep
   return dot(faceNormal(polyhedron, faceIndex), faceCenter) > epsilon;
 }
 
+
+/**
+ * Signed volume by summing tetrahedra from the origin over each fan-triangulated
+ * face. Faces are wound outward, so the result is positive for hulls that
+ * contain the origin.
+ */
+export function volume(polyhedron: Polyhedron): number {
+  let total = 0;
+  for (const face of polyhedron.faces) {
+    const first = polyhedron.vertices[face[0] ?? -1];
+    if (first === undefined) throw new Error("Face references a missing vertex");
+    for (let index = 1; index < face.length - 1; index += 1) {
+      const second = polyhedron.vertices[face[index] ?? -1];
+      const third = polyhedron.vertices[face[index + 1] ?? -1];
+      if (second === undefined || third === undefined) {
+        throw new Error("Face references a missing vertex");
+      }
+      total += dot(first, cross(second, third)) / 6;
+    }
+  }
+  return total;
+}

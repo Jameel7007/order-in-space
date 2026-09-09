@@ -20,7 +20,28 @@ function planeKey(normal: Vec3, offset: number, epsilon: number): string {
     .join(":");
 }
 
-function orderFace(indices: readonly number[], points: readonly Vec3[], outwardNormal: Vec3): Face {
+interface PlanarPoint {
+  readonly index: number;
+  readonly u: number;
+  readonly v: number;
+}
+
+function planarCross(o: PlanarPoint, a: PlanarPoint, b: PlanarPoint): number {
+  return (a.u - o.u) * (b.v - o.v) - (a.v - o.v) * (b.u - o.u);
+}
+
+/**
+ * Keep only the strict corners of a supporting plane's point set, in
+ * counter-clockwise order about the outward normal. Points that lie on a face
+ * interior or along an edge (a sphere sitting mid-face in a packing shell, for
+ * instance) support the plane but are not vertices of the polygon.
+ */
+function orderFace(
+  indices: readonly number[],
+  points: readonly Vec3[],
+  outwardNormal: Vec3,
+  epsilon: number,
+): Face {
   const faceCenter = centroid(indices.map((index) => {
     const point = points[index];
     if (point === undefined) {
@@ -28,25 +49,73 @@ function orderFace(indices: readonly number[], points: readonly Vec3[], outwardN
     }
     return point;
   }));
-  const first = points[indices[0] ?? -1];
-  if (first === undefined) {
-    throw new Error("Cannot order an empty face");
-  }
-  const basisU = normalize(subtract(first, faceCenter));
+  const seed = indices
+    .map((index) => {
+      const point = points[index];
+      if (point === undefined) throw new Error("Face references a missing point");
+      return { index, offset: subtract(point, faceCenter) };
+    })
+    .reduce((best, candidate) => (length(candidate.offset) > length(best.offset) ? candidate : best));
+  const basisU = normalize(seed.offset);
   const basisV = cross(outwardNormal, basisU);
+  const planar = indices
+    .map((index) => {
+      const point = points[index];
+      if (point === undefined) throw new Error("Face references a missing point");
+      const relative = subtract(point, faceCenter);
+      return { index, u: dot(relative, basisU), v: dot(relative, basisV) };
+    })
+    .sort((left, right) => left.u - right.u || left.v - right.v || left.index - right.index);
 
-  return [...indices].sort((leftIndex, rightIndex) => {
-    const left = points[leftIndex];
-    const right = points[rightIndex];
-    if (left === undefined || right === undefined) {
-      throw new Error("Face references a missing point");
+  const cornerEpsilon = epsilon * length(seed.offset);
+  const lower: PlanarPoint[] = [];
+  for (const point of planar) {
+    while (lower.length >= 2) {
+      const a = lower[lower.length - 2];
+      const b = lower[lower.length - 1];
+      if (a === undefined || b === undefined || planarCross(a, b, point) > cornerEpsilon) break;
+      lower.pop();
     }
-    const leftRelative = subtract(left, faceCenter);
-    const rightRelative = subtract(right, faceCenter);
-    const leftAngle = Math.atan2(dot(leftRelative, basisV), dot(leftRelative, basisU));
-    const rightAngle = Math.atan2(dot(rightRelative, basisV), dot(rightRelative, basisU));
-    return leftAngle - rightAngle;
-  });
+    lower.push(point);
+  }
+  const upper: PlanarPoint[] = [];
+  for (let cursor = planar.length - 1; cursor >= 0; cursor -= 1) {
+    const point = planar[cursor];
+    if (point === undefined) continue;
+    while (upper.length >= 2) {
+      const a = upper[upper.length - 2];
+      const b = upper[upper.length - 1];
+      if (a === undefined || b === undefined || planarCross(a, b, point) > cornerEpsilon) break;
+      upper.pop();
+    }
+    upper.push(point);
+  }
+  lower.pop();
+  upper.pop();
+  // The chain never pops its own end points, so a point lying on an edge that
+  // happens to be extreme in u (within rounding) can survive. Remove any
+  // remaining corner that is collinear with its cyclic neighbors.
+  const ring = [...lower, ...upper];
+  let pruned = true;
+  while (pruned && ring.length > 3) {
+    pruned = false;
+    for (let cursor = 0; cursor < ring.length; cursor += 1) {
+      const before = ring[(cursor + ring.length - 1) % ring.length];
+      const current = ring[cursor];
+      const after = ring[(cursor + 1) % ring.length];
+      if (before === undefined || current === undefined || after === undefined) continue;
+      if (Math.abs(planarCross(before, current, after)) <= cornerEpsilon) {
+        ring.splice(cursor, 1);
+        pruned = true;
+        break;
+      }
+    }
+  }
+  const corners = ring.map(({ index }) => index);
+  if (corners.length < 3) {
+    throw new Error("A supporting plane produced fewer than three corners");
+  }
+  return corners;
 }
 
 function extractEdges(faces: readonly Face[]): readonly Edge[] {
@@ -112,7 +181,7 @@ export function convexHull(points: readonly Vec3[], options: HullOptions = {}): 
 
         const key = planeKey(normal, offset, epsilon * 10);
         if (!facesByPlane.has(key)) {
-          facesByPlane.set(key, orderFace(coplanar, points, normal));
+          facesByPlane.set(key, orderFace(coplanar, points, normal, epsilon));
         }
       }
     }
