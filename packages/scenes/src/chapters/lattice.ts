@@ -136,6 +136,7 @@ export const latticeChapter: Chapter = {
   title: "The lattice",
   kicker: "Order without end",
   screens: 7,
+  beatStarts: [0, 0.24, 0.5, 0.82],
   beats: [
     {
       eyebrow: "The smallest crowd",

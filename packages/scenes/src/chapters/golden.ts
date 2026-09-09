@@ -101,6 +101,7 @@ export const goldenChapter: Chapter = {
   title: "The golden tightening",
   kicker: "Remove the center",
   screens: 7,
+  beatStarts: [0, 0.14, 0.5, 0.66],
   beats: [
     {
       eyebrow: "An empty middle",

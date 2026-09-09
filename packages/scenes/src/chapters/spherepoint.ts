@@ -44,6 +44,7 @@ export const spherepointChapter: Chapter = {
   title: "The spherepoint",
   kicker: "Begin with a point",
   screens: 3,
+  beatStarts: [0, 0.3, 0.62],
   beats: [
     {
       eyebrow: "First, a point.",

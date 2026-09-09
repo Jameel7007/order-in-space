@@ -110,6 +110,7 @@ export const twinsChapter: Chapter = {
   title: "The inside-out twin",
   kicker: "Every solid has a twin",
   screens: 6,
+  beatStarts: [0, 0.2, 0.5, 0.78],
   beats: [
     {
       eyebrow: "Look again",
