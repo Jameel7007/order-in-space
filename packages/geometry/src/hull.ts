@@ -2,6 +2,7 @@ import type { Edge, Face, Polyhedron, Vec3 } from "./types.js";
 import {
   centroid,
   cross,
+  distance,
   dot,
   length,
   normalize,
@@ -14,10 +15,12 @@ export interface HullOptions {
   readonly epsilon?: number;
 }
 
-function planeKey(normal: Vec3, offset: number, epsilon: number): string {
-  return [normal.x, normal.y, normal.z, offset]
-    .map((value) => Math.round(value / epsilon))
-    .join(":");
+interface Triangle {
+  readonly a: number;
+  readonly b: number;
+  readonly c: number;
+  readonly normal: Vec3;
+  readonly offset: number;
 }
 
 interface PlanarPoint {
@@ -134,6 +137,180 @@ function extractEdges(faces: readonly Face[]): readonly Edge[] {
   return [...edges.values()].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
 }
 
+function makeTriangle(points: readonly Vec3[], a: number, b: number, c: number): Triangle | undefined {
+  const pa = points[a];
+  const pb = points[b];
+  const pc = points[c];
+  if (pa === undefined || pb === undefined || pc === undefined) {
+    throw new Error("Triangle references a missing point");
+  }
+  const raw = cross(subtract(pb, pa), subtract(pc, pa));
+  const magnitude = length(raw);
+  if (magnitude <= 1e-18) return undefined;
+  const normal = scale(raw, 1 / magnitude);
+  return { a, b, c, normal, offset: dot(normal, pa) };
+}
+
+function signedDistance(triangle: Triangle, point: Vec3): number {
+  return dot(triangle.normal, point) - triangle.offset;
+}
+
+function initialSimplex(points: readonly Vec3[], epsilon: number): Triangle[] {
+  let minX = 0;
+  let maxX = 0;
+  points.forEach((point, index) => {
+    const low = points[minX];
+    const high = points[maxX];
+    if (low !== undefined && point.x < low.x) minX = index;
+    if (high !== undefined && point.x > high.x) maxX = index;
+  });
+  const first = points[minX];
+  const second = points[maxX];
+  if (first === undefined || second === undefined || distance(first, second) <= epsilon) {
+    throw new Error("Points do not form a closed three-dimensional convex hull");
+  }
+
+  let third = -1;
+  let widest = epsilon;
+  const axis = subtract(second, first);
+  points.forEach((point, index) => {
+    const spread = length(cross(axis, subtract(point, first))) / length(axis);
+    if (spread > widest) {
+      widest = spread;
+      third = index;
+    }
+  });
+  if (third < 0) throw new Error("Points do not form a closed three-dimensional convex hull");
+
+  const base = makeTriangle(points, minX, maxX, third);
+  if (base === undefined) throw new Error("Points do not form a closed three-dimensional convex hull");
+  let fourth = -1;
+  let tallest = epsilon;
+  points.forEach((point, index) => {
+    const height = Math.abs(signedDistance(base, point));
+    if (height > tallest) {
+      tallest = height;
+      fourth = index;
+    }
+  });
+  if (fourth < 0) throw new Error("Points do not form a closed three-dimensional convex hull");
+
+  const apex = points[fourth];
+  if (apex === undefined) throw new Error("Simplex apex is missing");
+  const [a, b, c] = signedDistance(base, apex) > 0
+    ? [base.b, base.a, base.c]
+    : [base.a, base.b, base.c];
+  const candidates = [
+    makeTriangle(points, a, b, c),
+    makeTriangle(points, a, c, fourth),
+    makeTriangle(points, c, b, fourth),
+    makeTriangle(points, b, a, fourth),
+  ];
+  const simplex: Triangle[] = [];
+  for (const triangle of candidates) {
+    if (triangle === undefined) throw new Error("Initial simplex is degenerate");
+    simplex.push(triangle);
+  }
+  return simplex;
+}
+
+/**
+ * Incremental quickhull. Every step adds the point farthest outside the
+ * current hull, removes the faces it can see, and closes the horizon with new
+ * triangles. Points inside or on the hull are never promoted to vertices.
+ */
+function quickhullTriangles(points: readonly Vec3[], epsilon: number): readonly Triangle[] {
+  let triangles = initialSimplex(points, epsilon);
+  const pending = new Set<number>(points.map((_, index) => index));
+  for (const triangle of triangles) {
+    pending.delete(triangle.a);
+    pending.delete(triangle.b);
+    pending.delete(triangle.c);
+  }
+
+  for (;;) {
+    let farthestIndex = -1;
+    let farthestDistance = epsilon;
+    for (const index of pending) {
+      const point = points[index];
+      if (point === undefined) continue;
+      let outside = Number.NEGATIVE_INFINITY;
+      for (const triangle of triangles) {
+        outside = Math.max(outside, signedDistance(triangle, point));
+      }
+      if (outside <= epsilon) {
+        pending.delete(index);
+        continue;
+      }
+      if (outside > farthestDistance) {
+        farthestDistance = outside;
+        farthestIndex = index;
+      }
+    }
+    if (farthestIndex < 0) break;
+    pending.delete(farthestIndex);
+    const apex = points[farthestIndex];
+    if (apex === undefined) throw new Error("Hull apex is missing");
+
+    const visible = new Set<Triangle>();
+    for (const triangle of triangles) {
+      if (signedDistance(triangle, apex) > epsilon) visible.add(triangle);
+    }
+    const directedEdges = new Map<string, readonly [number, number]>();
+    for (const triangle of visible) {
+      for (const [start, end] of [[triangle.a, triangle.b], [triangle.b, triangle.c], [triangle.c, triangle.a]] as const) {
+        directedEdges.set(`${String(start)}:${String(end)}`, [start, end]);
+      }
+    }
+    const horizon: (readonly [number, number])[] = [];
+    for (const [start, end] of directedEdges.values()) {
+      if (!directedEdges.has(`${String(end)}:${String(start)}`)) horizon.push([start, end]);
+    }
+    const next = triangles.filter((triangle) => !visible.has(triangle));
+    for (const [start, end] of horizon) {
+      const triangle = makeTriangle(points, start, end, farthestIndex);
+      if (triangle !== undefined) next.push(triangle);
+    }
+    triangles = next;
+  }
+  return triangles;
+}
+
+interface PlaneGroup {
+  readonly normal: Vec3;
+  readonly offset: number;
+  readonly indices: Set<number>;
+}
+
+function groupCoplanarTriangles(
+  triangles: readonly Triangle[],
+  points: readonly Vec3[],
+  epsilon: number,
+): readonly PlaneGroup[] {
+  const groups: PlaneGroup[] = [];
+  for (const triangle of triangles) {
+    const group = groups.find((candidate) => (
+      dot(candidate.normal, triangle.normal) > 1 - 1e-9
+      && [triangle.a, triangle.b, triangle.c].every((index) => {
+        const point = points[index];
+        return point !== undefined && Math.abs(dot(candidate.normal, point) - candidate.offset) <= epsilon;
+      })
+    ));
+    if (group === undefined) {
+      groups.push({
+        normal: triangle.normal,
+        offset: triangle.offset,
+        indices: new Set([triangle.a, triangle.b, triangle.c]),
+      });
+    } else {
+      group.indices.add(triangle.a);
+      group.indices.add(triangle.b);
+      group.indices.add(triangle.c);
+    }
+  }
+  return groups;
+}
+
 export function convexHull(points: readonly Vec3[], options: HullOptions = {}): Polyhedron {
   if (points.length < 4) {
     throw new Error("A three-dimensional convex hull needs at least four points");
@@ -141,53 +318,22 @@ export function convexHull(points: readonly Vec3[], options: HullOptions = {}): 
 
   const scaleMagnitude = Math.max(...points.map(length));
   const epsilon = (options.epsilon ?? 1e-8) * Math.max(1, scaleMagnitude);
-  const facesByPlane = new Map<string, Face>();
-
-  for (let i = 0; i < points.length - 2; i += 1) {
-    const a = points[i];
-    if (a === undefined) continue;
-    for (let j = i + 1; j < points.length - 1; j += 1) {
-      const b = points[j];
-      if (b === undefined) continue;
-      for (let k = j + 1; k < points.length; k += 1) {
-        const c = points[k];
-        if (c === undefined) continue;
-        const rawNormal = cross(subtract(b, a), subtract(c, a));
-        if (length(rawNormal) <= epsilon * epsilon) continue;
-
-        let normal = normalize(rawNormal);
-        let offset = dot(normal, a);
-        let maximum = Number.NEGATIVE_INFINITY;
-        let minimum = Number.POSITIVE_INFINITY;
-        for (const point of points) {
-          const signedDistance = dot(normal, point) - offset;
-          maximum = Math.max(maximum, signedDistance);
-          minimum = Math.min(minimum, signedDistance);
-        }
-
-        if (maximum > epsilon && minimum < -epsilon) continue;
-        if (minimum >= -epsilon) {
-          normal = scale(normal, -1);
-          offset *= -1;
-        }
-
-        const coplanar: number[] = [];
-        points.forEach((point, pointIndex) => {
-          if (Math.abs(dot(normal, point) - offset) <= epsilon) {
-            coplanar.push(pointIndex);
-          }
-        });
-        if (coplanar.length < 3) continue;
-
-        const key = planeKey(normal, offset, epsilon * 10);
-        if (!facesByPlane.has(key)) {
-          facesByPlane.set(key, orderFace(coplanar, points, normal, epsilon));
-        }
-      }
-    }
+  const triangles = quickhullTriangles(points, epsilon);
+  if (triangles.length < 4) {
+    throw new Error("Points do not form a closed three-dimensional convex hull");
   }
-
-  const faces = [...facesByPlane.values()];
+  const groups = groupCoplanarTriangles(triangles, points, epsilon);
+  const faces = groups
+    .map((group) => orderFace([...group.indices].sort((a, b) => a - b), points, group.normal, epsilon))
+    .sort((left, right) => {
+      const leftKey = [...left].sort((a, b) => a - b);
+      const rightKey = [...right].sort((a, b) => a - b);
+      for (let index = 0; index < Math.min(leftKey.length, rightKey.length); index += 1) {
+        const difference = (leftKey[index] ?? 0) - (rightKey[index] ?? 0);
+        if (difference !== 0) return difference;
+      }
+      return leftKey.length - rightKey.length;
+    });
   if (faces.length < 4) {
     throw new Error("Points do not form a closed three-dimensional convex hull");
   }
