@@ -133,3 +133,35 @@ export function edgeMidpoints(polyhedron: Polyhedron): readonly Vec3[] {
     return scale(add(a, b), 0.5);
   });
 }
+
+/**
+ * Rotate `source` so that its first vertex and first incident edge land on the
+ * corresponding vertex and edge of `target`. For regular solids the rotation
+ * group acts transitively on directed edges, so this carries the whole vertex
+ * set of one copy onto the other.
+ */
+export function alignSolids(source: Polyhedron, target: Polyhedron): Matrix3 {
+  const sourceVertex = source.vertices[0];
+  const targetVertex = target.vertices[0];
+  const sourceNeighborIndex = vertexNeighbors(source, 0)[0];
+  const targetNeighborIndex = vertexNeighbors(target, 0)[0];
+  const sourceNeighbor = sourceNeighborIndex === undefined ? undefined : source.vertices[sourceNeighborIndex];
+  const targetNeighbor = targetNeighborIndex === undefined ? undefined : target.vertices[targetNeighborIndex];
+  if (sourceVertex === undefined || targetVertex === undefined
+    || sourceNeighbor === undefined || targetNeighbor === undefined) {
+    throw new Error("Both solids need a vertex with an incident edge");
+  }
+  return rotationFromFrames(
+    sourceVertex,
+    subtract(sourceNeighbor, sourceVertex),
+    targetVertex,
+    subtract(targetNeighbor, targetVertex),
+  );
+}
+
+/** Largest distance from any vertex of `a` to the nearest vertex of `b`. */
+export function vertexSetDistance(a: Polyhedron, b: Polyhedron): number {
+  return Math.max(...a.vertices.map((vertex) => (
+    Math.min(...b.vertices.map((candidate) => length(subtract(candidate, vertex))))
+  )));
+}

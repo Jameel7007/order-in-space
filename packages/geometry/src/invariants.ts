@@ -73,3 +73,36 @@ export function volume(polyhedron: Polyhedron): number {
   }
   return total;
 }
+
+/** Distance from the origin to each edge midpoint. */
+export function midradii(polyhedron: Polyhedron): readonly number[] {
+  return polyhedron.edges.map(([start, end]) => {
+    const a = polyhedron.vertices[start];
+    const b = polyhedron.vertices[end];
+    if (a === undefined || b === undefined) {
+      throw new Error("Edge references a missing vertex");
+    }
+    return length({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, z: (a.z + b.z) / 2 });
+  });
+}
+
+/** The shared midsphere radius of an edge-transitive solid. */
+export function midradius(polyhedron: Polyhedron, epsilon = 1e-8): number {
+  const radii = midradii(polyhedron);
+  const minimum = Math.min(...radii);
+  const maximum = Math.max(...radii);
+  if (maximum - minimum > epsilon * Math.max(1, maximum)) {
+    throw new Error("Edge midpoints are not cospherical; there is no single midsphere");
+  }
+  return (minimum + maximum) / 2;
+}
+
+/** Distance from the origin to the nearest face plane. */
+export function inradius(polyhedron: Polyhedron): number {
+  return Math.min(...polyhedron.faces.map((face, index) => {
+    const vertex = polyhedron.vertices[face[0] ?? -1];
+    if (vertex === undefined) throw new Error("Face references a missing vertex");
+    const normal = faceNormal(polyhedron, index);
+    return Math.abs(dot(normal, vertex)) / length(normal);
+  }));
+}
