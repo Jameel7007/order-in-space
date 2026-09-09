@@ -7,6 +7,7 @@ import {
   frameSignature,
   sampleChapter,
   sampleStory,
+  stillFor,
 } from "../src/index.js";
 
 describe("the nine-chapter argument", () => {
@@ -24,7 +25,20 @@ describe("the nine-chapter argument", () => {
         expect(chapter.beatStarts).toHaveLength(chapter.beats.length);
         expect([...chapter.beatStarts]).toEqual([...chapter.beatStarts].sort((a, b) => a - b));
       }
+      expect(chapter.stills).toBeDefined();
+      expect(chapter.stills).toHaveLength(chapter.beats.length);
+      expect([...(chapter.stills ?? [])]).toEqual([...(chapter.stills ?? [])].sort((a, b) => a - b));
+      expect((chapter.stills ?? []).every((still) => still >= 0 && still <= 1)).toBe(true);
     });
+  });
+
+  it("offers one resting frame per beat when motion is reduced", () => {
+    for (const chapter of STORY_CHAPTERS) {
+      const stills = new Set<number>();
+      for (let step = 0; step <= 100; step += 1) stills.add(stillFor(chapter, step / 100));
+      expect(stills.size).toBe(chapter.beats.length);
+      expect(stillFor(chapter, 1)).toBe(chapter.stills?.[chapter.beats.length - 1]);
+    }
   });
 
   it("is seamless at every chapter boundary", () => {

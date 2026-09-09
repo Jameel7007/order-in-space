@@ -70,4 +70,18 @@ export function activeBeat(chapter: Chapter, progress: number): number {
   return Math.min(count - 1, Math.floor(clamp01(progress) * count));
 }
 
+/**
+ * The resting position that stands in for `progress` when motion is reduced:
+ * the still of the active beat, or the beat's start, or its midpoint.
+ */
+export function stillFor(chapter: Chapter, progress: number): number {
+  const beat = activeBeat(chapter, progress);
+  if (beat < 0) return clamp01(progress);
+  const still = chapter.stills?.[beat];
+  if (still !== undefined) return clamp01(still);
+  const start = chapter.beatStarts?.[beat];
+  if (start !== undefined) return clamp01(start);
+  return Math.min(1, (beat + 0.5) / chapter.beats.length);
+}
+
 export const STORY_SCREENS = STORY_CHAPTERS.reduce((sum, { screens }) => sum + screens, 0);

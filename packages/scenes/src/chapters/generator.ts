@@ -239,6 +239,7 @@ export function sampleGenerator(progress: number): SceneFrame {
     const symbol = amount <= 0 ? segment.from.symbol : amount >= 1 ? segment.to.symbol : "moving point";
     featured = generatorSolid(sample.room, distances, sample.orbit, symbol);
     solids.push(solid(`generator:${sample.room.key}:${sample.orbit}:${segment.index}:${String(amount)}`, featured, {
+      slot: "generator:moving",
       opacity: 1,
       vertexOpacity: vertexReveal(segment, amount),
     }));
@@ -312,6 +313,7 @@ export const generatorChapter: Chapter = {
   kicker: "Change the whole world",
   screens: 16,
   beatStarts: GENERATOR_BEATS.map(({ at }) => waypointStart(at)),
+  stills: GENERATOR_BEATS.map(({ at }, index) => (index === GENERATOR_BEATS.length - 1 ? 1 : waypointStart(at))),
   beats: GENERATOR_BEATS.map(({ eyebrow, heading, body }) => ({ eyebrow, heading, body })),
   sample: sampleGenerator,
 };

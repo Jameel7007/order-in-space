@@ -138,6 +138,7 @@ export const closingChapter: Chapter = {
   title: "Closing space",
   kicker: "How corners close",
   screens: 8,
+  stills: CLOSURE_EPISODES.map((_, index) => (index + 0.7) / CLOSURE_EPISODES.length),
   beats: [
     {
       eyebrow: "A corner is a decision",

@@ -14,8 +14,6 @@ import {
   Vector3,
 } from "three";
 
-import { clearAndDispose } from "./dispose.js";
-
 const Y_AXIS = new Vector3(0, 1, 0);
 
 export interface PolyhedronDrawingStyle {
@@ -145,21 +143,50 @@ export function createVertexMesh(polyhedron: Polyhedron, style: PolyhedronDrawin
   return mesh;
 }
 
+/**
+ * Edges, faces, and optional vertex markers for one polyhedron. The three
+ * materials are created once and survive every geometry update, so a solid
+ * that changes shape on every scroll frame never triggers a shader rebuild.
+ */
 export class PolyhedronDrawing {
   readonly group = new Group();
+  readonly edgeMaterial: MeshStandardMaterial;
+  readonly faceMaterial: MeshStandardMaterial;
+  readonly vertexMaterial: MeshStandardMaterial;
   private polyhedron: Polyhedron;
-  private style: PolyhedronDrawingStyle;
+  private style: Required<PolyhedronDrawingStyle>;
 
   constructor(polyhedron: Polyhedron, style: PolyhedronDrawingStyle = {}) {
     this.polyhedron = polyhedron;
-    this.style = style;
+    this.style = { ...DEFAULT_STYLE, ...style };
     this.group.name = "polyhedron drawing";
+    this.edgeMaterial = new MeshStandardMaterial({
+      color: this.style.edgeColor,
+      roughness: 0.82,
+      metalness: 0,
+      flatShading: true,
+    });
+    this.faceMaterial = new MeshStandardMaterial({
+      color: this.style.faceColor,
+      opacity: this.style.faceOpacity,
+      transparent: this.style.faceOpacity < 1,
+      depthWrite: true,
+      roughness: 1,
+      metalness: 0,
+      side: DoubleSide,
+      polygonOffset: true,
+      polygonOffsetFactor: 1,
+      polygonOffsetUnits: 1,
+    });
+    this.vertexMaterial = new MeshStandardMaterial({
+      color: this.style.vertexColor,
+      roughness: 0.76,
+    });
     this.rebuild();
   }
 
-  update(polyhedron: Polyhedron, style: PolyhedronDrawingStyle = this.style): void {
+  update(polyhedron: Polyhedron): void {
     this.polyhedron = polyhedron;
-    this.style = style;
     this.rebuild();
   }
 
@@ -174,14 +201,39 @@ export class PolyhedronDrawing {
   }
 
   dispose(): void {
-    clearAndDispose(this.group);
+    this.disposeGeometries();
+    this.edgeMaterial.dispose();
+    this.faceMaterial.dispose();
+    this.vertexMaterial.dispose();
+  }
+
+  private disposeGeometries(): void {
+    for (const child of [...this.group.children]) {
+      this.group.remove(child);
+      child.traverse((node) => {
+        if (node instanceof Mesh) (node.geometry as BufferGeometry).dispose();
+      });
+    }
   }
 
   private rebuild(): void {
-    clearAndDispose(this.group);
-    const resolved = { ...DEFAULT_STYLE, ...this.style };
-    if (resolved.showFaces) this.group.add(createFaceMesh(this.polyhedron, resolved));
-    this.group.add(createEdgeMesh(this.polyhedron, resolved));
-    if (resolved.showVertices) this.group.add(createVertexMesh(this.polyhedron, resolved));
+    this.disposeGeometries();
+    const resolved = this.style;
+    if (resolved.showFaces) {
+      const faces = createFaceMesh(this.polyhedron, resolved);
+      (faces.material as MeshStandardMaterial).dispose();
+      faces.material = this.faceMaterial;
+      this.group.add(faces);
+    }
+    const edges = createEdgeMesh(this.polyhedron, resolved);
+    (edges.material as MeshStandardMaterial).dispose();
+    edges.material = this.edgeMaterial;
+    this.group.add(edges);
+    if (resolved.showVertices) {
+      const vertices = createVertexMesh(this.polyhedron, resolved);
+      (vertices.material as MeshStandardMaterial).dispose();
+      vertices.material = this.vertexMaterial;
+      this.group.add(vertices);
+    }
   }
 }

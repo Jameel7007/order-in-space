@@ -1,11 +1,10 @@
-import type { Polyhedron, Sphere, Vec3 } from "@order-in-space/geometry";
+import type { Polyhedron } from "@order-in-space/geometry";
 import {
+  PolygonSheet,
   PolyhedronDrawing,
-  clearAndDispose,
+  SegmentDrawing,
+  SphereDrawing,
   createCircumsphereGuide,
-  createPolygonGroup,
-  createSegmentMesh,
-  createSphereMesh,
   disposeObject,
 } from "@order-in-space/render";
 import type {
@@ -85,10 +84,17 @@ const LINE_STYLES: Readonly<Record<LineRole, { color: number; radius: number }>>
   trace: { color: 0x8a8378, radius: 0.006 },
 };
 
+/** Draw order among translucent objects, so sorting never flips frame to frame. */
+const RENDER_ORDER = { guide: -2, spheres: -1, solid: 0, polygons: 1, lines: 2 } as const;
+
+type Drawing = PolyhedronDrawing | SphereDrawing | PolygonSheet | SegmentDrawing | { group: Group; dispose(): void };
+
 interface StageEntry {
-  readonly object: Object3D;
-  readonly kind: "solid" | "spheres" | "polygons" | "lines" | "guide";
-  readonly signature: string;
+  readonly drawing: Drawing;
+  /** Identity of the geometry currently uploaded for this slot. */
+  key: string;
+  /** Identity of the style; a change here needs a fresh drawing. */
+  readonly styleKey: string;
 }
 
 function setMaterialOpacity(object: Object3D | undefined, opacity: number, base = 1): void {
@@ -99,47 +105,73 @@ function setMaterialOpacity(object: Object3D | undefined, opacity: number, base 
     for (const material of materials as Material[]) {
       const value = Math.max(0, Math.min(1, opacity * base));
       material.opacity = value;
-      material.transparent = value < 0.999;
+      const transparent = value < 0.999;
+      if (material.transparent !== transparent) {
+        // three.js compiles opacity handling into the shader, so crossing the
+        // opaque/translucent boundary needs a recompile; it happens rarely.
+        material.transparent = transparent;
+        material.needsUpdate = true;
+      }
       material.depthWrite = value >= 0.5;
-      material.needsUpdate = false;
     }
   });
   object.visible = opacity > 1e-4;
 }
 
-function solidSignature(entry: FrameSolid): string {
-  return `${entry.key}|${entry.role}|${entry.showFaces ? "f" : ""}${entry.showEdges ? "e" : ""}${entry.vertexOpacity > 0 ? "v" : ""}`;
+function setRenderOrder(object: Object3D, order: number): void {
+  object.traverse((child) => {
+    child.renderOrder = order;
+  });
 }
 
-function spheresSignature(entry: FrameSpheres): string {
-  return `${entry.key}|${entry.role}|${entry.spheres.map((sphere) => (
-    `${sphere.center.x.toFixed(5)},${sphere.center.y.toFixed(5)},${sphere.center.z.toFixed(5)},${sphere.radius.toFixed(5)}`
-  )).join(";")}`;
+function round4(value: number): string {
+  return value.toFixed(4);
 }
 
-function polygonsSignature(entry: FramePolygons): string {
-  return `${entry.key}|${entry.role}|${entry.polygons.map((polygon) => polygon.map((corner) => (
-    `${corner.x.toFixed(4)},${corner.y.toFixed(4)},${corner.z.toFixed(4)}`
-  )).join(";")).join("/")}`;
+function vertexKey(polyhedron: Polyhedron): string {
+  let sum = 0;
+  let weighted = 0;
+  polyhedron.vertices.forEach((vertex, index) => {
+    sum += vertex.x + vertex.y + vertex.z;
+    weighted += (index + 1) * (vertex.x * 0.7 + vertex.y * 1.3 + vertex.z * 1.9);
+  });
+  return `${String(polyhedron.vertices.length)}:${String(polyhedron.edges.length)}:${round4(sum)}:${round4(weighted)}`;
 }
 
-function linesSignature(entry: FrameLines): string {
-  return `${entry.key}|${entry.role}|${entry.segments.length}|${entry.segments.slice(0, 4).map(([a, b]) => (
-    `${a.x.toFixed(3)},${a.y.toFixed(3)},${a.z.toFixed(3)}-${b.x.toFixed(3)},${b.y.toFixed(3)},${b.z.toFixed(3)}`
-  )).join(";")}`;
+function spheresKey(entry: FrameSpheres): string {
+  return entry.spheres.map((sphere) => (
+    `${round4(sphere.center.x)},${round4(sphere.center.y)},${round4(sphere.center.z)},${round4(sphere.radius)}`
+  )).join(";");
+}
+
+function polygonsKey(entry: FramePolygons): string {
+  return entry.polygons.map((polygon) => polygon.map((corner) => (
+    `${round4(corner.x)},${round4(corner.y)},${round4(corner.z)}`
+  )).join(";")).join("/");
+}
+
+function linesKey(entry: FrameLines): string {
+  let sum = 0;
+  entry.segments.forEach(([a, b], index) => {
+    sum += (index + 1) * (a.x + a.y * 1.3 + a.z * 1.7 + b.x * 0.7 + b.y * 1.1 + b.z * 1.9);
+  });
+  return `${String(entry.segments.length)}:${round4(sum)}`;
 }
 
 /**
- * Draws scene frames. Objects are keyed by the frame element keys and only
- * rebuilt when their geometry changes; opacity, scale, and visibility are
- * updated in place every frame.
+ * Draws scene frames. Each frame element owns a slot; the drawing in a slot
+ * keeps its materials for the life of the slot and only re-uploads geometry
+ * when the element's geometry key changes. Opacity, scale, and visibility
+ * are updated in place every frame.
  */
 export class StoryStage {
   readonly renderer: WebGLRenderer;
   private readonly scene = new Scene();
   private readonly stage = new Group();
   private readonly world = new Group();
-  private readonly camera = new OrthographicCamera(-2, 2, 2, -2, 0.01, 100);
+  // Depth range hugs the content (all of it lies within 4.5 units of the
+  // origin) so mobile 16-bit depth buffers still separate coincident planes.
+  private readonly camera = new OrthographicCamera(-2, 2, 2, -2, 5, 15);
   private readonly entries = new Map<string, StageEntry>();
   private frustumHeight = 4.35;
   private horizontalShift = 0;
@@ -197,7 +229,10 @@ export class StoryStage {
   }
 
   dispose(): void {
-    clearAndDispose(this.world);
+    for (const entry of this.entries.values()) {
+      this.world.remove(entry.drawing.group);
+      entry.drawing.dispose();
+    }
     this.entries.clear();
     this.renderer.dispose();
   }
@@ -210,11 +245,11 @@ export class StoryStage {
     for (const entry of frame.lines) live.add(this.drawLines(entry));
     for (const entry of frame.guides) live.add(this.drawGuide(entry.key, entry.radius, entry.opacity));
 
-    for (const [key, entry] of this.entries) {
-      if (live.has(key)) continue;
-      this.world.remove(entry.object);
-      disposeObject(entry.object);
-      this.entries.delete(key);
+    for (const [slot, entry] of this.entries) {
+      if (live.has(slot)) continue;
+      this.world.remove(entry.drawing.group);
+      entry.drawing.dispose();
+      this.entries.delete(slot);
     }
 
     this.stage.rotation.set(frame.camera.pitch, frame.camera.yaw, 0);
@@ -224,101 +259,149 @@ export class StoryStage {
     this.render();
   }
 
-  private replace(key: string, signature: string, kind: StageEntry["kind"], build: () => Object3D): Object3D {
-    const existing = this.entries.get(key);
-    if (existing !== undefined && existing.signature === signature) return existing.object;
-    if (existing !== undefined) {
-      this.world.remove(existing.object);
-      disposeObject(existing.object);
+  /**
+   * Fetch the drawing for a slot, creating it when the slot is new or its
+   * style changed, and re-uploading geometry when only the key changed.
+   */
+  private slotDrawing<T extends Drawing>(
+    slot: string,
+    key: string,
+    styleKey: string,
+    order: number,
+    create: () => T,
+    update: (drawing: T) => void,
+  ): T {
+    const existing = this.entries.get(slot);
+    if (existing !== undefined && existing.styleKey === styleKey) {
+      if (existing.key !== key) {
+        update(existing.drawing as T);
+        existing.key = key;
+      }
+      return existing.drawing as T;
     }
-    const object = build();
-    this.world.add(object);
-    this.entries.set(key, { object, kind, signature });
-    return object;
+    if (existing !== undefined) {
+      this.world.remove(existing.drawing.group);
+      existing.drawing.dispose();
+    }
+    const drawing = create();
+    setRenderOrder(drawing.group, order);
+    this.world.add(drawing.group);
+    this.entries.set(slot, { drawing, key, styleKey });
+    return drawing;
   }
 
   private drawSolid(entry: FrameSolid): string {
-    const key = `solid:${entry.key}`;
+    const slot = `solid:${entry.slot}`;
     const style = SOLID_STYLES[entry.role];
-    const object = this.replace(key, solidSignature(entry), "solid", () => {
-      const group = new Group();
-      group.name = entry.key;
-      const drawing = new PolyhedronDrawing(entry.polyhedron, {
+    const styleKey = `${entry.role}|${entry.showFaces ? "f" : ""}${entry.vertexOpacity > 0 || entry.slot !== entry.key ? "v" : ""}|${round4(style.edgeRadius(entry.polyhedron))}`;
+    const drawing = this.slotDrawing(
+      slot,
+      `${entry.key}|${vertexKey(entry.polyhedron)}`,
+      styleKey,
+      RENDER_ORDER.solid,
+      () => new PolyhedronDrawing(entry.polyhedron, {
         edgeColor: style.edgeColor,
         edgeRadius: style.edgeRadius(entry.polyhedron),
         faceColor: style.faceColor,
         faceOpacity: style.faceOpacity,
         showFaces: entry.showFaces,
-        showVertices: entry.vertexOpacity > 0,
+        showVertices: true,
         vertexColor: 0x9a4e32,
         vertexRadius: 0.026,
-      });
-      if (!entry.showEdges) {
-        const edges = drawing.group.getObjectByName("polyhedron edges");
-        if (edges !== undefined) edges.visible = false;
-      }
-      group.add(drawing.group);
-      return group;
-    });
+      }),
+      (existing) => existing.update(entry.polyhedron),
+    );
+    const object = drawing.group;
     object.scale.setScalar(entry.scale);
     object.visible = entry.opacity > 1e-4;
     setMaterialOpacity(object.getObjectByName("polyhedron edges"), entry.showEdges ? entry.opacity : 0);
     setMaterialOpacity(object.getObjectByName("supporting faces"), entry.opacity, style.faceOpacity);
     setMaterialOpacity(object.getObjectByName("polyhedron vertices"), entry.opacity * entry.vertexOpacity);
-    return key;
+    return slot;
   }
 
   private drawSpheres(entry: FrameSpheres): string {
-    const key = `spheres:${entry.key}`;
-    const object = this.replace(key, spheresSignature(entry), "spheres", () => (
-      createSphereMesh(entry.spheres as readonly Sphere[], {
+    const slot = `spheres:${entry.key}`;
+    const drawing = this.slotDrawing(
+      slot,
+      spheresKey(entry),
+      entry.role,
+      RENDER_ORDER.spheres,
+      () => new SphereDrawing(entry.spheres, {
         color: SPHERE_COLORS[entry.role],
         opacity: 1,
         widthSegments: entry.role === "point" ? 40 : 26,
         heightSegments: entry.role === "point" ? 28 : 18,
-      })
-    ));
-    setMaterialOpacity(object, entry.opacity);
-    return key;
+      }),
+      (existing) => existing.update(entry.spheres),
+    );
+    setMaterialOpacity(drawing.group, entry.opacity);
+    return slot;
   }
 
   private drawPolygons(entry: FramePolygons): string {
-    const key = `polygons:${entry.key}`;
+    const slot = `polygons:${entry.key}`;
     const style = POLYGON_STYLES[entry.role];
-    const object = this.replace(key, polygonsSignature(entry), "polygons", () => createPolygonGroup(entry.polygons, {
-      edgeColor: style.edgeColor,
-      edgeRadius: style.edgeRadius,
-      faceColor: style.faceColor,
-      faceOpacity: style.faceOpacity,
-    }));
-    setMaterialOpacity(object.getObjectByName("polygon edges"), entry.opacity);
-    setMaterialOpacity(object.getObjectByName("polygon faces"), entry.opacity, style.faceOpacity);
-    object.visible = entry.opacity > 1e-4;
-    return key;
+    const drawing = this.slotDrawing(
+      slot,
+      polygonsKey(entry),
+      entry.role,
+      RENDER_ORDER.polygons,
+      () => new PolygonSheet(entry.polygons, {
+        edgeColor: style.edgeColor,
+        edgeRadius: style.edgeRadius,
+        faceColor: style.faceColor,
+        faceOpacity: style.faceOpacity,
+      }),
+      (existing) => existing.update(entry.polygons),
+    );
+    setMaterialOpacity(drawing.edges.group, entry.opacity);
+    setMaterialOpacity(drawing.faces, entry.opacity, style.faceOpacity);
+    drawing.group.visible = entry.opacity > 1e-4;
+    return slot;
   }
 
   private drawLines(entry: FrameLines): string {
-    const key = `lines:${entry.key}`;
+    const slot = `lines:${entry.key}`;
     const style = LINE_STYLES[entry.role];
-    const object = this.replace(key, linesSignature(entry), "lines", () => createSegmentMesh(entry.segments, {
-      color: style.color,
-      radius: style.radius,
-      opacity: 1,
-      radialSegments: entry.role === "strut" ? 5 : 8,
-    }));
-    setMaterialOpacity(object, entry.opacity);
-    return key;
+    const drawing = this.slotDrawing(
+      slot,
+      linesKey(entry),
+      entry.role,
+      RENDER_ORDER.lines,
+      () => new SegmentDrawing(entry.segments, {
+        color: style.color,
+        radius: style.radius,
+        opacity: 1,
+        radialSegments: entry.role === "strut" ? 5 : 8,
+      }),
+      (existing) => existing.update(entry.segments),
+    );
+    setMaterialOpacity(drawing.group, entry.opacity);
+    return slot;
   }
 
   private drawGuide(keyName: string, radius: number, opacity: number): string {
-    const key = `guide:${keyName}`;
-    const object = this.replace(key, `${keyName}|${radius.toFixed(5)}`, "guide", () => createCircumsphereGuide(radius, {
-      color: 0x956852,
-      opacity: 1,
-    }));
-    setMaterialOpacity(object, opacity, 0.14);
-    return key;
+    const slot = `guide:${keyName}`;
+    const drawing = this.slotDrawing(
+      slot,
+      round4(radius),
+      "guide",
+      RENDER_ORDER.guide,
+      () => {
+        const group = createCircumsphereGuide(radius, { color: 0x956852, opacity: 1 });
+        return { group, dispose: () => disposeObject(group) };
+      },
+      (existing) => {
+        for (const child of [...existing.group.children]) {
+          existing.group.remove(child);
+          disposeObject(child);
+        }
+        const fresh = createCircumsphereGuide(radius, { color: 0x956852, opacity: 1 });
+        existing.group.add(...fresh.children);
+      },
+    );
+    setMaterialOpacity(drawing.group, opacity, 0.14);
+    return slot;
   }
 }
-
-export type { Vec3 };

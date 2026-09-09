@@ -58,6 +58,7 @@ export function sampleGolden(progress: number): SceneFrame {
     chapter: 5,
     progress,
     solids: [solid(tightened ? "golden:icosahedron" : `golden:shell:${String(Math.round(amount * TIGHTEN_STEPS))}`, hull, {
+      slot: "golden:shell",
       opacity: 1,
       role: "primary",
     })],
@@ -102,6 +103,7 @@ export const goldenChapter: Chapter = {
   kicker: "Remove the center",
   screens: 7,
   beatStarts: [0, 0.14, 0.5, 0.66],
+  stills: [0.14, 0.4, 0.64, 0.8],
   beats: [
     {
       eyebrow: "An empty middle",

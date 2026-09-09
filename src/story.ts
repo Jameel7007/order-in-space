@@ -2,6 +2,7 @@ import {
   STORY_CHAPTERS,
   activeBeat,
   sampleChapter,
+  stillFor,
   type Chapter,
   type SceneFrame,
 } from "@order-in-space/scenes";
@@ -45,7 +46,8 @@ class TextCache {
 class ShapeStory {
   private readonly canvas = requireElement<HTMLCanvasElement>("story-canvas");
   private readonly scrubber = requireElement<HTMLInputElement>("story-scrubber");
-  private readonly reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  private readonly motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
+  private reducedMotion = false;
   private readonly text = new TextCache();
   private readonly sections: HTMLElement[] = [];
   private readonly beatArticles = new Map<number, HTMLElement[]>();
@@ -56,6 +58,7 @@ class ShapeStory {
 
   constructor() {
     gsap.registerPlugin(ScrollTrigger);
+    this.initMotionMode();
     this.buildContents();
     this.buildChapters();
     this.buildBeats();
@@ -145,6 +148,54 @@ class ShapeStory {
     }
   }
 
+  private static readonly MOTION_KEY = "order-in-space:motion";
+
+  /**
+   * Reduced motion follows the operating-system preference by default and
+   * can be switched either way from the page; the choice is remembered.
+   */
+  private initMotionMode(): void {
+    let stored: string | null = null;
+    try {
+      stored = window.localStorage.getItem(ShapeStory.MOTION_KEY);
+    } catch {
+      stored = null;
+    }
+    this.applyMotionMode(stored === null ? this.motionPreference.matches : stored === "reduced", false);
+    this.motionPreference.addEventListener("change", (event) => {
+      let override: string | null = null;
+      try {
+        override = window.localStorage.getItem(ShapeStory.MOTION_KEY);
+      } catch {
+        override = null;
+      }
+      if (override === null) this.applyMotionMode(event.matches, true);
+    });
+    requireElement<HTMLButtonElement>("motion-toggle").addEventListener("click", () => {
+      this.applyMotionMode(!this.reducedMotion, true);
+      try {
+        window.localStorage.setItem(ShapeStory.MOTION_KEY, this.reducedMotion ? "reduced" : "full");
+      } catch {
+        // Storage may be unavailable; the choice still applies for this visit.
+      }
+    });
+  }
+
+  private applyMotionMode(reduced: boolean, rebuildTriggers: boolean): void {
+    this.reducedMotion = reduced;
+    requireElement<HTMLElement>("story-app").classList.toggle("is-reduced-motion", reduced);
+    const toggle = requireElement<HTMLButtonElement>("motion-toggle");
+    toggle.setAttribute("aria-pressed", reduced ? "true" : "false");
+    toggle.title = reduced
+      ? "Motion is reduced: each chapter shows still drawings. Switch to continuous motion."
+      : "Show each chapter as a series of still drawings instead of continuous motion";
+    if (rebuildTriggers) {
+      for (const trigger of ScrollTrigger.getAll()) trigger.kill();
+      this.createScrollStory();
+      this.setProgress(this.current.chapter, this.current.progress);
+    }
+  }
+
   private startStage(): void {
     try {
       this.stage = new StoryStage(this.canvas);
@@ -175,7 +226,7 @@ class ShapeStory {
       const available = Math.max(0, section.offsetHeight - window.innerHeight);
       window.scrollTo({
         top: section.offsetTop + available * Number(this.scrubber.value),
-        behavior: this.reducedMotion.matches ? "auto" : "smooth",
+        behavior: this.reducedMotion ? "auto" : "smooth",
       });
     });
     window.addEventListener("keydown", (event) => {
@@ -200,7 +251,7 @@ class ShapeStory {
         trigger: section,
         start: "top top",
         end: "bottom bottom",
-        scrub: this.reducedMotion.matches ? false : 0.5,
+        scrub: this.reducedMotion ? true : 0.5,
         onUpdate: ({ progress }) => this.scheduleProgress(number, progress),
         onEnter: () => this.scheduleProgress(number, 0),
         onEnterBack: () => this.scheduleProgress(number, 1),
@@ -217,10 +268,13 @@ class ShapeStory {
 
   setProgress(chapterNumber: number, progress: number): SceneFrame {
     this.current = { chapter: chapterNumber, progress };
-    const frame = sampleChapter(chapterNumber, progress);
-    this.stage?.draw(frame);
     const chapter = STORY_CHAPTERS[chapterNumber - 1];
-    if (chapter !== undefined) this.updateHud(chapter, progress, frame);
+    // With reduced motion the chapter rests on one finished drawing per beat
+    // instead of morphing continuously with the scroll position.
+    const shown = chapter !== undefined && this.reducedMotion ? stillFor(chapter, progress) : progress;
+    const frame = sampleChapter(chapterNumber, shown);
+    this.stage?.draw(frame);
+    if (chapter !== undefined) this.updateHud(chapter, shown, frame);
     this.updateHeroState();
     return frame;
   }
@@ -321,13 +375,14 @@ class ShapeStory {
     const height = window.innerHeight;
     const aspect = width / Math.max(1, height);
     const portrait = width <= 920 && width < height;
-    // Chapters are composed for a wide field. Portrait screens keep at least
-    // 3.2 world units visible across, and lift the field above the copy.
-    const frustumHeight = portrait ? Math.max(5.2, 3.2 / aspect) : 4.35;
+    // Chapters are composed for a wide field. Portrait screens show a taller,
+    // narrower field (at least 3.2 world units across) and lift its center to
+    // about 35% of the height, above the copy block that owns the bottom.
+    const frustumHeight = portrait ? Math.max(6.4, 3.2 / aspect) : 4.35;
     this.stage.setComposition({
       frustumHeight,
       horizontalShift: portrait ? 0 : aspect > 1.25 ? 0.55 : 0.2,
-      verticalShift: portrait ? -0.09 * frustumHeight : 0,
+      verticalShift: portrait ? -0.15 * frustumHeight : 0,
     });
     this.stage.draw(sampleChapter(this.current.chapter, this.current.progress));
     ScrollTrigger.refresh();
@@ -338,7 +393,7 @@ class ShapeStory {
     loader.classList.add("is-done");
     window.setTimeout(() => {
       loader.hidden = true;
-    }, this.reducedMotion.matches ? 0 : 520);
+    }, this.reducedMotion ? 0 : 520);
   }
 }
 

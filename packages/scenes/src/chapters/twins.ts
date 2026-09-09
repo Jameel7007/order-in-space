@@ -111,6 +111,7 @@ export const twinsChapter: Chapter = {
   kicker: "Every solid has a twin",
   screens: 6,
   beatStarts: [0, 0.2, 0.5, 0.78],
+  stills: [0.18, 0.3, 0.62, 1],
   beats: [
     {
       eyebrow: "Look again",

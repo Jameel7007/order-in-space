@@ -102,6 +102,7 @@ export const twelveChapter: Chapter = {
   kicker: "Spheres gather",
   screens: 6,
   beatStarts: [0, 0.3, 0.7, 0.88],
+  stills: [0.22, 0.7, 0.9, 1],
   beats: [
     {
       eyebrow: "A crowd forms",

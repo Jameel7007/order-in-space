@@ -122,7 +122,8 @@ export const cellChapter: Chapter = {
   title: "The space cell",
   kicker: "Every sphere's fair share",
   screens: 7,
-  beatStarts: [0, 0.48, 0.66, 0.9],
+  beatStarts: [0, 0.52, 0.68, 0.9],
+  stills: [0.5, 0.64, 0.9, 1],
   beats: [
     {
       eyebrow: "Back to one",

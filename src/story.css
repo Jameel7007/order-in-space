@@ -158,21 +158,53 @@ input {
 }
 
 .story-nav nav a,
-.contents-menu summary {
+.contents-menu summary,
+.motion-toggle {
   display: inline-flex;
   min-height: 44px;
   align-items: center;
-  padding-bottom: 5px;
+  gap: 8px;
+  margin: 0;
+  padding: 0 0 5px;
+  border: 0;
   border-bottom: 1px solid currentColor;
+  border-radius: 0;
   color: inherit;
+  background: none;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 760;
+  letter-spacing: 0.13em;
   text-decoration: none;
+  text-transform: uppercase;
   cursor: pointer;
   transition: color 180ms ease;
 }
 
 .story-nav nav a:hover,
-.contents-menu summary:hover {
+.contents-menu summary:hover,
+.motion-toggle:hover {
   color: var(--story-rust);
+}
+
+.motion-toggle::before {
+  width: 8px;
+  height: 8px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  content: "";
+}
+
+.motion-toggle[aria-pressed="true"] {
+  color: var(--story-rust);
+}
+
+.motion-toggle[aria-pressed="true"]::before {
+  background: currentColor;
+}
+
+.story-nav .short {
+  display: none;
 }
 
 .contents-menu {
@@ -413,6 +445,13 @@ input {
   font-size: 11px;
   font-style: italic;
   line-height: 1.35;
+}
+
+.story-copy {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  pointer-events: none;
 }
 
 .shape-identity {
@@ -830,28 +869,34 @@ input {
     display: none;
   }
 
+  .story-copy {
+    display: grid;
+    inset: auto 16px 82px;
+    gap: 14px;
+  }
+
   .shape-identity {
-    top: 108px;
-    right: 16px;
-    bottom: auto;
-    left: auto;
-    width: min(250px, 58vw);
-    padding: 8px 10px;
+    position: static;
+    width: auto;
+    padding: 0 0 12px;
+    border-bottom: 1px solid var(--story-line);
     transform: none;
-    text-align: right;
-    background: rgba(241, 238, 229, 0.84);
-    box-shadow: 0 0 18px 8px rgba(241, 238, 229, 0.72);
-    backdrop-filter: blur(8px);
+    text-align: left;
   }
 
   .shape-identity > p:first-child {
-    margin-bottom: 4px;
+    min-height: 0;
+    margin-bottom: 3px;
     font-size: 8px;
   }
 
   .shape-identity h2 {
-    margin-bottom: 4px;
-    font-size: clamp(22px, 5.6vw, 32px);
+    margin-bottom: 3px;
+    font-size: clamp(22px, 5.8vw, 30px);
+  }
+
+  .story-measure {
+    margin: 0;
   }
 
   .shape-identity details,
@@ -875,35 +920,46 @@ input {
 
   .point-scrubber input {
     width: 100%;
+    height: 36px;
   }
 
   .story-stage-wash {
     background:
-      linear-gradient(0deg, rgba(241, 238, 229, 0.97), rgba(241, 238, 229, 0.85) 30%, transparent 48%),
-      linear-gradient(180deg, rgba(241, 238, 229, 0.3), transparent 34%);
+      linear-gradient(0deg, rgba(241, 238, 229, 0.98), rgba(241, 238, 229, 0.9) 36%, transparent 54%),
+      linear-gradient(180deg, rgba(241, 238, 229, 0.3), transparent 30%);
+  }
+
+  .story-beats {
+    position: static;
+    display: grid;
   }
 
   .story-beats article {
-    top: auto;
-    right: 16px;
-    bottom: 78px;
-    left: 16px;
+    position: static;
+    grid-area: 1 / 1;
+    align-self: start;
     width: auto;
-    transform: translateY(18px);
+    transform: translateY(12px);
   }
 
   .story-beats article[data-active] {
     transform: none;
   }
 
+  .beat-number {
+    margin-bottom: 8px;
+  }
+
   .story-beats h2 {
-    max-width: 14ch;
-    font-size: clamp(30px, 7.4vw, 48px);
+    max-width: 16ch;
+    margin-bottom: 10px;
+    font-size: clamp(24px, 6.4vw, 40px);
   }
 
   .story-beats article > p:last-child {
-    max-width: 44ch;
+    max-width: 46ch;
     font-size: 14px;
+    line-height: 1.5;
   }
 
   .story-about {
@@ -934,10 +990,24 @@ input {
     font-size: 8px;
   }
 
+  .story-nav nav {
+    gap: 12px;
+  }
+
   .story-nav nav a,
-  .contents-menu summary {
+  .contents-menu summary,
+  .motion-toggle {
     min-height: 36px;
+    font-size: 8px;
     white-space: nowrap;
+  }
+
+  .story-nav .long {
+    display: none;
+  }
+
+  .story-nav .short {
+    display: inline;
   }
 
   .story-hero h1 {
@@ -951,13 +1021,22 @@ input {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    scroll-behavior: auto !important;
-    transition-duration: 0.01ms !important;
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-  }
+/* Reduced motion follows the system preference by default and the nav
+   toggle thereafter; the application sets this class either way. */
+.is-reduced-motion,
+.is-reduced-motion *,
+.is-reduced-motion *::before,
+.is-reduced-motion *::after {
+  scroll-behavior: auto !important;
+  transition-duration: 0.01ms !important;
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+}
+
+html:has(.is-reduced-motion) {
+  scroll-behavior: auto;
+}
+
+.is-reduced-motion .loader-point {
+  animation: none;
 }

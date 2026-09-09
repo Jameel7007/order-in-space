@@ -4,7 +4,7 @@ import type { Chapter } from "../chapter.js";
 import { mix, phase, smooth, visible, type SceneFrame } from "../frame.js";
 import { OPACITY, POINT_RADIUS, SPHERE_RADIUS, cameraPose } from "../world.js";
 
-export const CLOSE_ZOOM = 1.9;
+export const CLOSE_ZOOM = 1.6;
 
 export function pointRadiusAt(progress: number): number {
   return mix(POINT_RADIUS, SPHERE_RADIUS, smooth(phase(progress, 0, 0.45)));
@@ -45,6 +45,7 @@ export const spherepointChapter: Chapter = {
   kicker: "Begin with a point",
   screens: 3,
   beatStarts: [0, 0.3, 0.62],
+  stills: [0.08, 0.42, 1],
   beats: [
     {
       eyebrow: "First, a point.",

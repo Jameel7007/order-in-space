@@ -84,6 +84,7 @@ export const returnChapter: Chapter = {
   kicker: "Back to the point",
   screens: 6,
   beatStarts: [0, 0.4, 0.66, 0.84],
+  stills: [0.26, 0.6, 0.82, 1],
   beats: [
     {
       eyebrow: "Undo the walls",

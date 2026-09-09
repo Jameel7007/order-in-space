@@ -12,7 +12,10 @@ export type PolygonRole = "fold" | "wall";
 export type LineRole = "strut" | "rectangle" | "trace";
 
 export interface FrameSolid {
+  /** Geometry identity; a new key means new vertices. */
   readonly key: string;
+  /** Element identity across frames; defaults to the key. A changing solid keeps one slot. */
+  readonly slot: string;
   readonly polyhedron: Polyhedron;
   readonly role: SolidRole;
   readonly opacity: number;
@@ -128,6 +131,7 @@ export function solid(
 ): FrameSolid {
   return {
     key,
+    slot: options.slot ?? key,
     polyhedron,
     role: options.role ?? "primary",
     opacity: clamp01(options.opacity ?? 1),

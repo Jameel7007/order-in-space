@@ -30,7 +30,10 @@
             <summary>Contents</summary>
             <ol id="contents-list" aria-label="Chapters"></ol>
           </details>
-          <a href="./lab/">Open the shape lab <span aria-hidden="true">↗</span></a>
+          <button id="motion-toggle" class="motion-toggle" type="button" aria-pressed="false" title="Show each chapter as a series of still drawings instead of continuous motion">
+            <span class="long">Reduce motion</span><span class="short">Motion</span>
+          </button>
+          <a href="./lab/"><span class="long">Open the shape lab</span><span class="short">Lab</span> <span aria-hidden="true">↗</span></a>
         </nav>
       </header>
 
@@ -55,6 +58,7 @@
           <p>Move this dot and every reflection must follow.</p>
         </div>
 
+        <div class="story-copy">
         <div class="shape-identity" aria-live="polite" aria-atomic="true">
           <p id="story-invitation">Begin with one point</p>
           <h2 id="story-name">A point</h2>
@@ -71,6 +75,7 @@
         </div>
 
         <div class="story-beats" id="story-beats" aria-live="polite"></div>
+        </div>
 
         <label class="point-scrubber" for="story-scrubber">
           <span id="scrubber-label">Try it: move through this chapter</span>
