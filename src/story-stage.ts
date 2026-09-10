@@ -73,9 +73,11 @@ const SPHERE_COLORS: Readonly<Record<SphereRole, number>> = {
   shell: 0xa7957d,
 };
 
+// Sheet outlines share the solids' graphite so a folded corner becomes the
+// finished corner with no color change; only the fills differ.
 const POLYGON_STYLES: Readonly<Record<PolygonRole, { edgeColor: number; faceColor: number; faceOpacity: number; edgeRadius: number }>> = {
-  fold: { edgeColor: 0x9a4e32, faceColor: 0xc9a98a, faceOpacity: 0.24, edgeRadius: 0.009 },
-  wall: { edgeColor: 0x733c2b, faceColor: 0xc2a98c, faceOpacity: 0.2, edgeRadius: 0.007 },
+  fold: { edgeColor: 0x25231f, faceColor: 0xd6b48f, faceOpacity: 0.34, edgeRadius: 0.011 },
+  wall: { edgeColor: 0x25231f, faceColor: 0xc9a98a, faceOpacity: 0.26, edgeRadius: 0.008 },
 };
 
 const LINE_STYLES: Readonly<Record<LineRole, { color: number; radius: number }>> = {

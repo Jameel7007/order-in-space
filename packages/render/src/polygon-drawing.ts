@@ -5,7 +5,7 @@ import {
   Float32BufferAttribute,
   Group,
   Mesh,
-  MeshStandardMaterial,
+  MeshBasicMaterial,
 } from "three";
 
 import { SegmentDrawing } from "./segment-drawing.js";
@@ -37,7 +37,6 @@ function sheetGeometry(polygons: readonly (readonly Vec3[])[]): BufferGeometry {
   }
   const geometry = new BufferGeometry();
   geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
-  geometry.computeVertexNormals();
   geometry.computeBoundingSphere();
   return geometry;
 }
@@ -56,9 +55,11 @@ function outlineOf(polygons: readonly (readonly Vec3[])[]): (readonly [Vec3, Vec
 /**
  * Free-standing planar polygons (a folding vertex figure, a Voronoi wall)
  * drawn as a soft fill with graphite outlines. They are not a polyhedron:
- * no topology is claimed beyond each polygon's own ring. Materials persist
- * across updates, and the fill sits slightly in front of any coincident
- * polyhedron face so the two never fight for the same depth.
+ * no topology is claimed beyond each polygon's own ring. The fill is unlit:
+ * a sheet that folds past edge-on would otherwise flip from its lit top to
+ * its shadowed underside in one frame. Materials persist across updates,
+ * and the fill sits slightly in front of any coincident polyhedron face so
+ * the two never fight for the same depth.
  */
 export class PolygonSheet {
   readonly group = new Group();
@@ -68,13 +69,11 @@ export class PolygonSheet {
   constructor(polygons: readonly (readonly Vec3[])[], style: PolygonDrawingStyle = {}) {
     this.group.name = "polygon sheet";
     const faceOpacity = style.faceOpacity ?? 0.2;
-    this.faces = new Mesh(sheetGeometry(polygons), new MeshStandardMaterial({
+    this.faces = new Mesh(sheetGeometry(polygons), new MeshBasicMaterial({
       color: style.faceColor ?? 0xc9a98a,
       opacity: faceOpacity,
       transparent: true,
       depthWrite: false,
-      roughness: 1,
-      metalness: 0,
       side: DoubleSide,
       polygonOffset: true,
       polygonOffsetFactor: -1,
@@ -98,7 +97,7 @@ export class PolygonSheet {
 
   dispose(): void {
     this.faces.geometry.dispose();
-    (this.faces.material as MeshStandardMaterial).dispose();
+    (this.faces.material as MeshBasicMaterial).dispose();
     this.edges.dispose();
   }
 }
