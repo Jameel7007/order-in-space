@@ -16,6 +16,11 @@ import { counts, mix, phase, smooth, solid, visible, type SceneFrame } from "../
 import { OPACITY, SPHERE_RADIUS, cameraPose } from "../world.js";
 import { CLOSE_ZOOM } from "./spherepoint.js";
 
+const FOLD_END = 0.5;
+const HANDOVER = 0.56;
+/** Solid faces draw at 0.13 against the sheet's 0.34; match them at the swap. */
+const SOLID_FILL_RATIO = 0.13 / 0.34;
+
 export interface ClosureEpisode {
   readonly sides: number;
   readonly count: number;
@@ -67,11 +72,17 @@ export function sampleClosing(progress: number): SceneFrame {
   if (episode === undefined) throw new Error("Closure episode out of range");
   const local = scaled - episodeIndex;
 
-  const foldProgress = smooth(phase(local, 0.04, 0.56));
-  const foldOpacity = Math.min(smooth(phase(local, 0, 0.08)), 1 - smooth(phase(local, 0.8, 0.9)));
-  const solidOpacity = episode.solid === undefined
+  const foldProgress = smooth(phase(local, 0.04, FOLD_END));
+  // The sheet hands over to the solid in one frame: its closed outline is the
+  // solid's own corner (same graphite, same radius), so nothing is ever drawn
+  // twice and the rest of the solid simply snaps into place.
+  const handedOver = episode.solid !== undefined && local >= HANDOVER;
+  const foldOpacity = handedOver
     ? 0
-    : Math.min(smooth(phase(local, 0.46, 0.72)), 1 - smooth(phase(local, 0.86, 1)));
+    : Math.min(smooth(phase(local, 0, 0.08)), 1 - smooth(phase(local, 0.8, 0.9)));
+  // The fill thins towards the solid's face tint before the swap.
+  const foldFill = mix(1, SOLID_FILL_RATIO, smooth(phase(local, 0.46, HANDOVER)));
+  const solidOpacity = !handedOver ? 0 : 1 - smooth(phase(local, 0.86, 1));
 
   const fold = foldVertexFigure({ sides: episode.sides, count: episode.count }, foldProgress);
   const posed = episode.solid === undefined ? undefined : posedClosure(episode.solid);
@@ -112,7 +123,7 @@ export function sampleClosing(progress: number): SceneFrame {
       role: "point",
       opacity: sphereOpacity,
     }],
-    polygons: visible([{ key: `fold:${String(episodeIndex)}`, polygons, role: "fold", opacity: foldOpacity }]),
+    polygons: visible([{ key: `fold:${String(episodeIndex)}`, polygons, role: "fold", opacity: foldOpacity, fill: foldFill }]),
     lines: [],
     guides: [{ key: "master", radius: SPHERE_RADIUS, opacity: OPACITY.guide }],
     camera: { yaw: pose.yaw, pitch: pose.pitch + pitchLift, zoom: CLOSE_ZOOM, focus: vec3(0, 0, 0) },

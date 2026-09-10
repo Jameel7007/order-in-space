@@ -37,6 +37,8 @@ export interface FramePolygons {
   readonly polygons: readonly (readonly Vec3[])[];
   readonly role: PolygonRole;
   readonly opacity: number;
+  /** Fill strength relative to the outline, 0–1; defaults to 1. */
+  readonly fill?: number;
 }
 
 export interface FrameLines {

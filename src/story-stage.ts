@@ -75,8 +75,10 @@ const SPHERE_COLORS: Readonly<Record<SphereRole, number>> = {
 
 // Sheet outlines share the solids' graphite so a folded corner becomes the
 // finished corner with no color change; only the fills differ.
+// The fold outline matches a small solid's edge radius so the closed corner
+// and the solid's corner are the same cylinders.
 const POLYGON_STYLES: Readonly<Record<PolygonRole, { edgeColor: number; faceColor: number; faceOpacity: number; edgeRadius: number }>> = {
-  fold: { edgeColor: 0x25231f, faceColor: 0xd6b48f, faceOpacity: 0.34, edgeRadius: 0.011 },
+  fold: { edgeColor: 0x25231f, faceColor: 0xd6b48f, faceOpacity: 0.34, edgeRadius: 0.0213 },
   wall: { edgeColor: 0x25231f, faceColor: 0xc9a98a, faceOpacity: 0.26, edgeRadius: 0.008 },
 };
 
@@ -99,7 +101,14 @@ interface StageEntry {
   readonly styleKey: string;
 }
 
-function setMaterialOpacity(object: Object3D | undefined, opacity: number, base = 1): void {
+type DepthMode = "always" | "never" | "auto";
+
+/**
+ * Edges and struts always write depth: a thin translucent cylinder that
+ * suddenly starts occluding at half opacity reads as a pop. Fills and
+ * sheets never write depth; spheres decide by opacity.
+ */
+function setMaterialOpacity(object: Object3D | undefined, opacity: number, base = 1, depth: DepthMode = "auto"): void {
   if (object === undefined) return;
   object.traverse((child) => {
     if (!(child instanceof Mesh) && !(child instanceof Line)) return;
@@ -114,7 +123,7 @@ function setMaterialOpacity(object: Object3D | undefined, opacity: number, base 
         material.transparent = transparent;
         material.needsUpdate = true;
       }
-      material.depthWrite = value >= 0.5;
+      material.depthWrite = depth === "always" ? true : depth === "never" ? false : value >= 0.5;
     }
   });
   object.visible = opacity > 1e-4;
@@ -316,9 +325,9 @@ export class StoryStage {
     const object = drawing.group;
     object.scale.setScalar(entry.scale);
     object.visible = entry.opacity > 1e-4;
-    setMaterialOpacity(object.getObjectByName("polyhedron edges"), entry.showEdges ? entry.opacity : 0);
-    setMaterialOpacity(object.getObjectByName("supporting faces"), entry.opacity, style.faceOpacity);
-    setMaterialOpacity(object.getObjectByName("polyhedron vertices"), entry.opacity * entry.vertexOpacity);
+    setMaterialOpacity(object.getObjectByName("polyhedron edges"), entry.showEdges ? entry.opacity : 0, 1, "always");
+    setMaterialOpacity(object.getObjectByName("supporting faces"), entry.opacity, style.faceOpacity, "never");
+    setMaterialOpacity(object.getObjectByName("polyhedron vertices"), entry.opacity * entry.vertexOpacity, 1, "always");
     return slot;
   }
 
@@ -357,8 +366,8 @@ export class StoryStage {
       }),
       (existing) => existing.update(entry.polygons),
     );
-    setMaterialOpacity(drawing.edges.group, entry.opacity);
-    setMaterialOpacity(drawing.faces, entry.opacity, style.faceOpacity);
+    setMaterialOpacity(drawing.edges.group, entry.opacity, 1, "always");
+    setMaterialOpacity(drawing.faces, entry.opacity * (entry.fill ?? 1), style.faceOpacity, "never");
     drawing.group.visible = entry.opacity > 1e-4;
     return slot;
   }
@@ -379,7 +388,7 @@ export class StoryStage {
       }),
       (existing) => existing.update(entry.segments),
     );
-    setMaterialOpacity(drawing.group, entry.opacity);
+    setMaterialOpacity(drawing.group, entry.opacity, 1, "always");
     return slot;
   }
 

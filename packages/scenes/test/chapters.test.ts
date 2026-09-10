@@ -52,13 +52,18 @@ describe("Scene 2 · closing space", () => {
       expect(frame.polygons[0]?.polygons).toHaveLength(episode.count);
       const closedFrame = sampleClosing((index + 0.6) / CLOSURE_EPISODES.length);
       if (episode.solid !== undefined) {
+        // After the hand-over only the solid is drawn; before it, the closed
+        // sheet coincides with the solid's top corner.
         expect(closedFrame.solids).toHaveLength(1);
+        expect(closedFrame.polygons).toHaveLength(0);
         expect(closedFrame.readout.counts?.vertices).toBeGreaterThan(0);
         const solid = closedFrame.solids[0]?.polyhedron;
         if (solid === undefined) throw new Error("Missing solid");
         expect(angularDeficiency(solid).total).toBeCloseTo(4 * Math.PI, 9);
-        // The folded corner coincides with the solid's top corner.
-        const fold = closedFrame.polygons[0]?.polygons.flat() ?? [];
+        const beforeSwap = sampleClosing((index + 0.54) / CLOSURE_EPISODES.length);
+        expect(beforeSwap.solids).toHaveLength(0);
+        const fold = beforeSwap.polygons[0]?.polygons.flat() ?? [];
+        expect(fold.length).toBeGreaterThan(0);
         for (const vertex of fold) {
           expect(Math.min(...solid.vertices.map((candidate) => distance(candidate, vertex)))).toBeLessThan(1e-7);
         }

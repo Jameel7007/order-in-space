@@ -31,6 +31,8 @@ Skip link, a Contents menu listing all chapters with anchors, a keyboard-operabl
 
 - Quickhull replaces the exhaustive hull: dense generators rebuild in about 13 ms; the full test suite runs in under a second.
 - Scene sampling is memoized by geometry key. Every frame element owns a slot on the stage; a slot keeps its materials for its whole life and only re-uploads geometry when the element's geometry key changes, so a solid that changes shape on every scroll frame (Scene 6) or a sheet that folds on every frame (Scene 2) never forces a shader rebuild. Opacity, scale, and visibility update in place; removed slots are disposed.
+- In Scene 2 the folding sheet hands over to the solid in a single frame: its closed outline is drawn with the solid's own graphite and edge radius, so the corner does not change and only the rest of the solid appears. Nothing is ever drawn twice, and the sheet fill is unlit so a face passing edge-on never flips from lit to shadowed.
+- Edge cylinders and struts always write depth; fills and sheets never do. This avoids the pop that occurs when a translucent edge suddenly starts occluding at half opacity.
 - Translucent objects draw in a fixed order (guides, spheres, solids, sheets, struts), the sheet fill carries a negative depth offset so it never fights a coincident polyhedron face, and the camera depth range hugs the content (5 to 15 units) so mobile 16-bit depth buffers keep coincident planes apart.
 - Story frames are drawn directly from ScrollTrigger's ticker; there is no free-running render loop.
 - The production bundle keeps Three.js in one shared chunk (about 555 kB minified, 142 kB gzip), which still triggers Vite's 500 kB advisory; splitting it would not reduce what the first paint needs.
