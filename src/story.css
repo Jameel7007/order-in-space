@@ -127,6 +127,7 @@ input {
   font-family: Georgia, "Times New Roman", serif;
   font-size: 23px;
   letter-spacing: -0.02em;
+  white-space: nowrap;
 }
 
 .story-wordmark small,
@@ -324,7 +325,7 @@ input {
 .chapter-mark {
   position: absolute;
   z-index: 3;
-  top: 78px;
+  top: calc(var(--nav-height, 84px) + 4px);
   left: 34px;
   display: flex;
   align-items: center;
@@ -392,7 +393,7 @@ input {
 .mirror-room {
   position: absolute;
   z-index: 3;
-  top: 78px;
+  top: calc(var(--nav-height, 84px) + 4px);
   right: 72px;
   width: 210px;
   padding: 10px 12px;
@@ -856,7 +857,7 @@ input {
   }
 
   .chapter-mark {
-    top: 68px;
+    top: calc(var(--nav-height, 76px) + 2px);
     left: 18px;
   }
 
@@ -992,6 +993,15 @@ input {
 
   .story-nav nav {
     gap: 12px;
+    flex-shrink: 0;
+  }
+
+  .story-wordmark {
+    min-width: 0;
+  }
+
+  .story-wordmark span {
+    font-size: 18px;
   }
 
   .story-nav nav a,
@@ -1018,6 +1028,31 @@ input {
     width: 88%;
     margin-top: 28px;
     font-size: 16px;
+  }
+}
+
+@media (max-width: 400px) {
+  .story-nav {
+    padding: 14px 14px;
+  }
+
+  .story-wordmark span {
+    font-size: 16px;
+  }
+
+  .story-nav nav {
+    gap: 8px;
+  }
+
+  .story-nav nav a,
+  .contents-menu summary,
+  .motion-toggle {
+    font-size: 7px;
+    letter-spacing: 0.09em;
+  }
+
+  .chapter-mark {
+    left: 14px;
   }
 }
 

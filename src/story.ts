@@ -370,6 +370,12 @@ class ShapeStory {
   }
 
   private applyComposition(): void {
+    // Overlays position themselves below the header's real height, so a
+    // wrapped header on a narrow screen never collides with the chapter mark.
+    const nav = document.querySelector<HTMLElement>(".story-nav");
+    if (nav !== null) {
+      document.documentElement.style.setProperty("--nav-height", `${String(nav.offsetHeight)}px`);
+    }
     if (this.stage === undefined) return;
     const width = window.innerWidth;
     const height = window.innerHeight;
