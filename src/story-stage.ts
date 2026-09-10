@@ -199,7 +199,8 @@ export class StoryStage {
     this.renderer.toneMapping = NeutralToneMapping;
     this.renderer.toneMappingExposure = 0.98;
     this.renderer.setClearColor(0xf1eee5, 0);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    // Phones pay for every pixel of a full-screen canvas; 1.5× is still crisp.
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, window.innerWidth <= 680 ? 1.5 : 2));
 
     this.scene.background = new Color(0xf1eee5);
     this.stage.add(this.world);

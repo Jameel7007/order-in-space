@@ -6,6 +6,12 @@ All seven milestones are complete. The renderer-independent kernel produces all 
 
 The public root is a nine-chapter, scroll-driven story: a point becomes a sphere, corners close, twelve spheres gather, twins appear, the shell tightens to the golden icosahedron, one moving point makes all eighteen solids, the lattice grows, each sphere claims its cell, and everything returns to the point. Every frame is a pure function of scroll position, chapter boundaries are proven seamless, and the last frame equals the first. `/lab` remains the deeper paper-and-graphite geometry instrument.
 
+## Try it
+
+- Story: https://jameel7007.github.io/order-in-space/
+- Lab: https://jameel7007.github.io/order-in-space/lab/
+- [How it works](docs/HOW_IT_WORKS.md), in plain language.
+
 ## Packages
 
 - `packages/geometry`: pure TypeScript mathematics. It must never import Three.js, browser APIs, or GPU APIs.
