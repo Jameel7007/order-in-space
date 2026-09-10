@@ -13,9 +13,9 @@ import { StoryStage } from "./story-stage.js";
 import "./story.css";
 
 function requireElement<T extends Element>(id: string): T {
-  const element = document.getElementById(id);
-  if (element === null) throw new Error(`Missing required story element #${id}`);
-  return element as unknown as T;
+  const found = document.getElementById(id);
+  if (found === null) throw new Error(`Missing required story element #${id}`);
+  return found as unknown as T;
 }
 
 function pad(number: number): string {

@@ -1,0 +1,21 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn",
+    "perf": "warn"
+  },
+  "rules": {
+    "no-unused-vars": "error",
+    "unicorn/no-useless-spread": "off",
+    "unicorn/no-array-sort": "off",
+    "unicorn/no-array-reverse": "off",
+    "unicorn/consistent-function-scoping": "off",
+    "no-new": "off",
+    "no-underscore-dangle": "off"
+  },
+  "ignorePatterns": [
+    "dist/**",
+    "packages/*/dist/**"
+  ]
+}

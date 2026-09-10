@@ -14,7 +14,7 @@ import {
 } from "@order-in-space/geometry";
 
 import type { Beat, Chapter } from "../chapter.js";
-import { counts, mix, phase, smooth, solid, visible, type FrameSolid, type SceneFrame } from "../frame.js";
+import { counts, phase, smooth, solid, visible, type FrameSolid, type SceneFrame } from "../frame.js";
 import { tetrahedralCluster } from "../lattice-cluster.js";
 import { ICOSAHEDRAL_RADIUS, cameraPose } from "../world.js";
 import { storyIcosahedron } from "./golden.js";

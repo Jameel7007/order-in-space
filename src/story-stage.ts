@@ -1,4 +1,3 @@
-import type { Polyhedron } from "@order-in-space/geometry";
 import {
   PolygonSheet,
   PolyhedronDrawing,
@@ -12,86 +11,31 @@ import type {
   FramePolygons,
   FrameSolid,
   FrameSpheres,
-  LineRole,
-  PolygonRole,
   SceneFrame,
-  SolidRole,
-  SphereRole,
 } from "@order-in-space/scenes";
 import {
   AmbientLight,
   Color,
   DirectionalLight,
   Group,
-  Line,
-  Material,
-  Mesh,
   NeutralToneMapping,
   OrthographicCamera,
   Scene,
   SRGBColorSpace,
   WebGLRenderer,
-  type Object3D,
 } from "three";
 
-interface SolidStyle {
-  readonly edgeColor: number;
-  readonly edgeRadius: (polyhedron: Polyhedron) => number;
-  readonly faceColor: number;
-  readonly faceOpacity: number;
-}
+import { linesKey, polygonsKey, round4, spheresKey, vertexKey } from "./stage/keys.js";
+import { setMaterialOpacity, setRenderOrder } from "./stage/materials.js";
+import {
+  LINE_STYLES,
+  POLYGON_STYLES,
+  RENDER_ORDER,
+  SOLID_STYLES,
+  SPHERE_COLORS,
+} from "./stage/styles.js";
 
-const SOLID_STYLES: Readonly<Record<SolidRole, SolidStyle>> = {
-  primary: {
-    edgeColor: 0x25231f,
-    edgeRadius: (polyhedron) => Math.max(0.008, 0.022 - polyhedron.edges.length * 0.000055),
-    faceColor: 0xcab499,
-    faceOpacity: 0.13,
-  },
-  secondary: {
-    edgeColor: 0x9a4e32,
-    edgeRadius: () => 0.0105,
-    faceColor: 0xc2a98c,
-    faceOpacity: 0.08,
-  },
-  ghost: {
-    edgeColor: 0x8f8a80,
-    edgeRadius: () => 0.0075,
-    faceColor: 0xc2a98c,
-    faceOpacity: 0.04,
-  },
-  accent: {
-    edgeColor: 0x4b5f70,
-    edgeRadius: () => 0.012,
-    faceColor: 0xb7c0c8,
-    faceOpacity: 0.08,
-  },
-};
-
-const SPHERE_COLORS: Readonly<Record<SphereRole, number>> = {
-  point: 0x9a4e32,
-  shell: 0xa7957d,
-};
-
-// Sheet outlines share the solids' graphite so a folded corner becomes the
-// finished corner with no color change; only the fills differ.
-// The fold outline matches a small solid's edge radius so the closed corner
-// and the solid's corner are the same cylinders.
-const POLYGON_STYLES: Readonly<Record<PolygonRole, { edgeColor: number; faceColor: number; faceOpacity: number; edgeRadius: number }>> = {
-  fold: { edgeColor: 0x25231f, faceColor: 0xd6b48f, faceOpacity: 0.34, edgeRadius: 0.0213 },
-  wall: { edgeColor: 0x25231f, faceColor: 0xc9a98a, faceOpacity: 0.26, edgeRadius: 0.008 },
-};
-
-const LINE_STYLES: Readonly<Record<LineRole, { color: number; radius: number }>> = {
-  strut: { color: 0x7d766b, radius: 0.007 },
-  rectangle: { color: 0x9a4e32, radius: 0.012 },
-  trace: { color: 0x8a8378, radius: 0.006 },
-};
-
-/** Draw order among translucent objects, so sorting never flips frame to frame. */
-const RENDER_ORDER = { guide: -2, spheres: -1, solid: 0, polygons: 1, lines: 2 } as const;
-
-type Drawing = PolyhedronDrawing | SphereDrawing | PolygonSheet | SegmentDrawing | { group: Group; dispose(): void };
+export type Drawing = PolyhedronDrawing | SphereDrawing | PolygonSheet | SegmentDrawing | { group: Group; dispose(): void };
 
 interface StageEntry {
   readonly drawing: Drawing;
@@ -99,74 +43,6 @@ interface StageEntry {
   key: string;
   /** Identity of the style; a change here needs a fresh drawing. */
   readonly styleKey: string;
-}
-
-type DepthMode = "always" | "never" | "auto";
-
-/**
- * Edges and struts always write depth: a thin translucent cylinder that
- * suddenly starts occluding at half opacity reads as a pop. Fills and
- * sheets never write depth; spheres decide by opacity.
- */
-function setMaterialOpacity(object: Object3D | undefined, opacity: number, base = 1, depth: DepthMode = "auto"): void {
-  if (object === undefined) return;
-  object.traverse((child) => {
-    if (!(child instanceof Mesh) && !(child instanceof Line)) return;
-    const materials = Array.isArray(child.material) ? child.material : [child.material];
-    for (const material of materials as Material[]) {
-      const value = Math.max(0, Math.min(1, opacity * base));
-      material.opacity = value;
-      const transparent = value < 0.999;
-      if (material.transparent !== transparent) {
-        // three.js compiles opacity handling into the shader, so crossing the
-        // opaque/translucent boundary needs a recompile; it happens rarely.
-        material.transparent = transparent;
-        material.needsUpdate = true;
-      }
-      material.depthWrite = depth === "always" ? true : depth === "never" ? false : value >= 0.5;
-    }
-  });
-  object.visible = opacity > 1e-4;
-}
-
-function setRenderOrder(object: Object3D, order: number): void {
-  object.traverse((child) => {
-    child.renderOrder = order;
-  });
-}
-
-function round4(value: number): string {
-  return value.toFixed(4);
-}
-
-function vertexKey(polyhedron: Polyhedron): string {
-  let sum = 0;
-  let weighted = 0;
-  polyhedron.vertices.forEach((vertex, index) => {
-    sum += vertex.x + vertex.y + vertex.z;
-    weighted += (index + 1) * (vertex.x * 0.7 + vertex.y * 1.3 + vertex.z * 1.9);
-  });
-  return `${String(polyhedron.vertices.length)}:${String(polyhedron.edges.length)}:${round4(sum)}:${round4(weighted)}`;
-}
-
-function spheresKey(entry: FrameSpheres): string {
-  return entry.spheres.map((sphere) => (
-    `${round4(sphere.center.x)},${round4(sphere.center.y)},${round4(sphere.center.z)},${round4(sphere.radius)}`
-  )).join(";");
-}
-
-function polygonsKey(entry: FramePolygons): string {
-  return entry.polygons.map((polygon) => polygon.map((corner) => (
-    `${round4(corner.x)},${round4(corner.y)},${round4(corner.z)}`
-  )).join(";")).join("/");
-}
-
-function linesKey(entry: FrameLines): string {
-  let sum = 0;
-  entry.segments.forEach(([a, b], index) => {
-    sum += (index + 1) * (a.x + a.y * 1.3 + a.z * 1.7 + b.x * 0.7 + b.y * 1.1 + b.z * 1.9);
-  });
-  return `${String(entry.segments.length)}:${round4(sum)}`;
 }
 
 /**
