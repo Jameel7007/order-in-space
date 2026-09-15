@@ -173,3 +173,18 @@ describe("packing and golden properties at random scale and orientation", () => 
     }
   });
 });
+
+describe("regression: outward winding at small scale", () => {
+  // Found by the rotation/scale property above (probe seed 52): the check
+  // compared the raw dot product of a face normal and its center against an
+  // absolute 1e-10, which is smaller than normal × center for solids around
+  // 0.001 across. The test is now dimensionless. Keep the exact case.
+  it("still reports outward faces on a truncated icosidodecahedron of radius 9.19e-4", () => {
+    const tiny = archimedean("truncatedIcosidodecahedron", 9.186088582878272e-4);
+    expect(tiny.faces.every((_, index) => isFaceWoundOutward(tiny, index))).toBe(true);
+    for (const scale of [1e-2, 1e-3, 1e-4, 1e-5]) {
+      const solid = platonic("dodecahedron", scale);
+      expect(solid.faces.every((_, index) => isFaceWoundOutward(solid, index)), `scale ${String(scale)}`).toBe(true);
+    }
+  });
+});

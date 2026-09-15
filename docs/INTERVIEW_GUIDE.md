@@ -52,6 +52,16 @@ Good choices, with what they prove:
 - `packing.test.ts`: while the twelve-sphere shell tightens from cuboctahedron to icosahedron, at 101 samples no two spheres overlap and the shell radius never increases. So the story's "pull inward until every neighbour touches" is a legitimate continuous motion.
 - `lattice.test.ts`: shells of an FCC packing hold 12, 42, and 92 spheres and each hulls to a cuboctahedron of edge n·2R, which is the "10n² + 2" claim in Chapter 7.
 
+## 5b. "How do you know your numerical code isn't just passing its own fixtures?"
+
+Open [`packages/geometry/test/property.test.ts`](../packages/geometry/test/property.test.ts).
+
+> The named solids are fixtures, so I added seeded property tests on top. They take any of the thirteen Archimedean solids, rotate it at random, scale it anywhere across seven orders of magnitude, and check the hull comes back with the same topology, outward faces, and 720° of deficiency. Others drop a generator anywhere in the mirror room, jitter a cube's corners to find where face merging stops, and walk a generator up to a mirror to find exactly where the 1e-8 tolerance takes effect.
+>
+> On the first run they exposed a real bug: my outward-winding check compared the raw dot product of a face normal and its centre against an absolute 1e-10, so solids smaller than about 0.001 failed. I changed the check to compare unit vectors, which is dimensionless, and kept the exact failing case in the suite as a named regression test. Every seed is in the failure message, so any case can be replayed.
+
+That is testing → discovery → diagnosis → fix → regression protection, and it is a much stronger sentence than "I have 121 tests".
+
 ## 6. "How is the code organised, and why?"
 
 > Three packages with a one-way dependency: `geometry` (pure maths, no Three.js or browser), `render` (Three.js objects, no scroll), `scenes` (frames, no Three.js). `scripts/check-boundaries.mjs` greps every source file and fails the build on a forbidden import. The benefit is testability: all the mathematics runs in Node with plain numbers, and the scene models can be tested for continuity without a GPU. The application in `src/` is the only place that knows about all three.
