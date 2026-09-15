@@ -40,6 +40,12 @@ export function faceNormal(polyhedron: Polyhedron, faceIndex: number): Vec3 {
   return cross(subtract(b, a), subtract(c, a));
 }
 
+/**
+ * Outward winding is a dimensionless question: the cosine of the angle
+ * between the face normal and the direction to the face center. Comparing
+ * unit vectors keeps the test valid at any scale; an absolute threshold on
+ * the raw dot product fails for small solids, where normal × center is tiny.
+ */
 export function isFaceWoundOutward(polyhedron: Polyhedron, faceIndex: number, epsilon = 1e-10): boolean {
   const face = polyhedron.faces[faceIndex];
   if (face === undefined) return false;
@@ -48,7 +54,10 @@ export function isFaceWoundOutward(polyhedron: Polyhedron, faceIndex: number, ep
     if (vertex === undefined) throw new Error("Face references a missing vertex");
     return vertex;
   }));
-  return dot(faceNormal(polyhedron, faceIndex), faceCenter) > epsilon;
+  const normal = faceNormal(polyhedron, faceIndex);
+  const scale = length(normal) * length(faceCenter);
+  if (scale <= 0) return false;
+  return dot(normal, faceCenter) / scale > epsilon;
 }
 
 

@@ -39,4 +39,4 @@ Skip link, a Contents menu listing all chapters with anchors, a keyboard-operabl
 
 ## Production checks
 
-`npm run check` runs the dependency-boundary script (22 geometry and 7 render files), oxlint with warnings denied, strict TypeScript, 115 Vitest tests, the package builds, and the GitHub Pages build with root and `lab/` entries. Two GitHub Actions workflows run it: `ci.yml` on every pull request and non-main push, and `deploy-pages.yml` before every publish from `main`. The repository is MIT licensed.
+`npm run check` runs the dependency-boundary script (22 geometry and 7 render files), oxlint with warnings denied, strict TypeScript, 121 Vitest tests, the package builds, and the GitHub Pages build with root and `lab/` entries. Two GitHub Actions workflows run it: `ci.yml` on every pull request and non-main push, and `deploy-pages.yml` before every publish from `main`. The repository is MIT licensed.

@@ -34,7 +34,7 @@ Some people prefer still images to continuous motion. The page follows the syste
 
 ## What the tests check
 
-There are 115 automated checks. Some of the more telling ones:
+There are 121 automated checks. Some of the more telling ones:
 
 - The three mirror rooms close at 24, 48, and 120 reflections.
 - All eighteen named solids have the right number of corners, edges, and faces, equal edges, and one shared sphere.
@@ -44,6 +44,7 @@ There are 115 automated checks. Some of the more telling ones:
 - The paper fold closes onto the real corner of the real solid.
 - Lattice shells hold 12, 42, and 92 spheres, following 10n² + 2.
 - The space cell has the lattice's fair share of volume, 4√2 R³.
+- Seeded random tests: any of the thirteen Archimedean solids, rotated at random and scaled anywhere from about 0.0003 to 3000, hulls back to the same topology with outward faces and 720° of deficiency; a generator dropped anywhere inside a mirror room gives the omnitruncated form; jittering a cube's corners keeps its six faces below the 1e-9 hull tolerance and triangulates them above it while always closing; and a generator walked towards a mirror keeps the truncated topology down to 1e-7 away, merges at 1e-8, and is the icosahedron below that. The seed is in every failure message, so a failing case can be replayed. This suite found a real bug: the outward-winding test used an absolute tolerance and failed on solids smaller than about 0.001.
 
 ## Things that went wrong, and what they taught
 
